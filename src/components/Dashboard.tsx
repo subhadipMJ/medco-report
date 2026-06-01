@@ -43,7 +43,7 @@ const Dashboard = ({ token }: DashboardProps) => {
         
         {/* Patient Header - Light Premium Mode */}
         <div className="px-6 pt-8 pb-6 relative z-10 bg-white">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-4">
               <div className="relative group cursor-pointer">
                 <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 p-[2px] shadow-lg shadow-blue-500/30">

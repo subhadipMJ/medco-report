@@ -1,4 +1,5 @@
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
+import { useNavigateWithToken } from '../hooks/useNavigateWithToken';
 import { ArrowLeft, Share2, Activity, User, HeartPulse, ShieldAlert } from 'lucide-react';
 import { XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Area, AreaChart } from 'recharts';
 import { reportsData } from '../data/advancedMockData';
@@ -36,7 +37,7 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 
 const ReportDetail = () => {
   const { id } = useParams();
-  const navigate = useNavigate();
+  const navigate = useNavigateWithToken();
   
   const report = reportsData.find(r => r.id === id);
 
