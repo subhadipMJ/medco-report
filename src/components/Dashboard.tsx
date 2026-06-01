@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useLabReports } from '../hooks/useLabReports';
-import { Activity, Droplet, Search, FileText, Pill, User, ChevronDown, CheckCircle2, HeartPulse, Sparkles, TrendingUp, ArrowUpRight, ArrowDownRight, ArrowRight, History, RefreshCw, FlaskConical, TestTube2, Heart, Loader2 } from 'lucide-react';
+import { Activity, Droplet, Search, FileText, Pill, User, ChevronDown, CheckCircle2, TrendingUp, ArrowUpRight, ArrowDownRight, ArrowRight, History, RefreshCw, FlaskConical, TestTube2, Heart, Loader2 } from 'lucide-react';
 
 const testTypeIcon = (keyword: string) => {
   switch (keyword) {
