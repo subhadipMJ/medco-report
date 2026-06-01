@@ -1,0 +1,36 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    -webkit-tap-highlight-color: transparent;
+  }
+}
+
+@layer utilities {
+  .delay-40 { animation-delay: 40ms; }
+  .delay-80 { animation-delay: 80ms; }
+  .delay-120 { animation-delay: 120ms; }
+  .delay-160 { animation-delay: 160ms; }
+  .delay-200 { animation-delay: 200ms; }
+  .delay-240 { animation-delay: 240ms; }
+  .delay-280 { animation-delay: 280ms; }
+  .delay-320 { animation-delay: 320ms; }
+  
+  .scrollbar-hidden::-webkit-scrollbar {
+    display: none;
+  }
+  .scrollbar-hidden {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 3px;
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background: #e2e8f0;
+    border-radius: 4px;
+  }
+}
