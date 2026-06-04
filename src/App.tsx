@@ -1,23 +1,104 @@
-import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import Dashboard from './components/Dashboard';
 import ReportDetail from './components/ReportDetail';
+import { FileText, LayoutGrid, BarChart3, GitCompare } from 'lucide-react';
+
+function GlobalBottomNav() {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const searchParams = new URLSearchParams(location.search);
+  const token = searchParams.get('token') ?? '';
+  const tabParam = searchParams.get('tab');
+  const activeTab =
+    tabParam === 'reports' || tabParam === 'groupWise' || tabParam === 'analysis' || tabParam === 'compare'
+      ? tabParam
+      : 'reports';
+
+  const navigateToTab = (tab: 'reports' | 'groupWise' | 'analysis' | 'compare') => {
+    const next = new URLSearchParams();
+    next.set('token', token);
+    next.set('tab', tab);
+    navigate(`/?${next.toString()}`);
+  };
+
+  return (
+    <div className="fixed bottom-6 left-1/2 z-50 w-[calc(100%-48px)] max-w-md -translate-x-1/2">
+      <div className="flex justify-between rounded-[24px] border border-slate-200 bg-white/90 p-2 shadow-[0_20px_40px_rgba(0,0,0,0.1)] backdrop-blur-xl">
+        <button
+          onClick={() => navigateToTab('reports')}
+          className={`flex flex-1 flex-col items-center gap-1 rounded-2xl p-2 transition-all ${
+            activeTab === 'reports'
+              ? 'bg-blue-50 text-blue-600'
+              : 'text-slate-400 hover:text-slate-600'
+          }`}
+        >
+          <FileText size={20} strokeWidth={activeTab === 'reports' ? 2.5 : 2} />
+          <span className="text-[10px] font-bold tracking-wide">Reports</span>
+        </button>
+        <button
+          onClick={() => navigateToTab('groupWise')}
+          className={`flex flex-1 flex-col items-center gap-1 rounded-2xl p-2 transition-all ${
+            activeTab === 'groupWise'
+              ? 'bg-blue-50 text-blue-600'
+              : 'text-slate-400 hover:text-slate-600'
+          }`}
+        >
+          <LayoutGrid size={20} strokeWidth={activeTab === 'groupWise' ? 2.5 : 2} />
+          <span className="text-[10px] font-bold tracking-wide">Group Wise</span>
+        </button>
+        <button
+          onClick={() => navigateToTab('analysis')}
+          className={`flex flex-1 flex-col items-center gap-1 rounded-2xl p-2 transition-all ${
+            activeTab === 'analysis'
+              ? 'bg-blue-50 text-blue-600'
+              : 'text-slate-400 hover:text-slate-600'
+          }`}
+        >
+          <BarChart3 size={20} strokeWidth={activeTab === 'analysis' ? 2.5 : 2} />
+          <span className="text-[10px] font-bold tracking-wide">Analysis</span>
+        </button>
+        <button
+          onClick={() => navigateToTab('compare')}
+          className={`flex flex-1 flex-col items-center gap-1 rounded-2xl p-2 transition-all ${
+            activeTab === 'compare'
+              ? 'bg-blue-50 text-blue-600'
+              : 'text-slate-400 hover:text-slate-600'
+          }`}
+        >
+          <GitCompare size={20} strokeWidth={activeTab === 'compare' ? 2.5 : 2} />
+          <span className="text-[10px] font-bold tracking-wide">Compare</span>
+        </button>
+      </div>
+    </div>
+  );
+}
 
 function AppRoutes() {
   const location = useLocation();
   const searchParams = new URLSearchParams(location.search);
-  // const TEST_TOKEN = 'eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiJ9.eyJhdWQiOiIzIiwianRpIjoiYTVlZDkzODAwODEwNmE2ZDUyNTU2NjMxNjMzNGVlM2U1ODg3Nzg4ODVkZmE3MDM2YWY3MmE3MzIzYzdmZTE2ZGRlYTdkMzgyYTQ0YzgyNjAiLCJpYXQiOjE3ODAyOTg5NTEuNDQ0MjcxLCJuYmYiOjE3ODAyOTg5NTEuNDQ0MjcyLCJleHAiOjE4MTE4MzQ5NTEuNDM4OTI0LCJzdWIiOiI0NjA0Iiwic2NvcGVzIjpbXX0.lEIW0IjEeHRuCoM1W943aRPzDS1OUBEx2SWatXFwoqjTI7C1YJTF-7iduVQ9YudJ-q1Gd-KujuQHS9NiWBIBZvT6-fw9bQomoENFmIN1H6LizQt535sFwLHBmrDvYKyzEe-amXPqo3zulQ6l8ff0j-3M6U7Fx0wcHjnu8WJl5PDThZ0OyaOOd8jrmubVVs7ibj5Gx39JusWkcpiBniI7GOkXV-_EfEwsAki3lrHGXkLpqqWTfCldh44xJh76TULsjuHOQAP1nIdNLo0b4hH-IYLp1cTdUFEq-Jnp_SPsNTUbqOQP74a5LZDm-_dZlJIruHvKY3PT_Th5iVdkFfJx6cdt-_vOAr1vZ03p_hnVHYcbWUx-RkCko_3RtSGvuPfFRMPCqUzNuwRnH1qY9x--CaEGPEIDRFAfaaQGbs7tSVIHVI2WQnS6rRlaN2A2OCHuiISLaj_d6Nfnc8k6-aL_tdYixRuqg9zxQ1szkFdObKK2pz3UEOso2vn4q-vjakkMUAtl_CqZFWMJBI4tGADsrOledYwqy4GIKpbW8OSKFK24GV4MmcYawzvt774VW-whEwP4C3NbIy4T4IjWNXSA9Y7DfP3CTKcUCPctekrU1dCSI6Sn90qlC0X4PJ0YBrhL5vylDhPyu-0soAncJAJK8BURe8eu7veiYDDGZNxpLtM';
-  const token = searchParams.get('token') || localStorage.getItem('medco_token') || '';
-  // const token = searchParams.get('token') || localStorage.getItem('medco_token') || TEST_TOKEN;
+  const storedToken = localStorage.getItem('medco_token') || '';
+  const urlToken = searchParams.get('token');
+  const token = urlToken ?? storedToken;
 
   if (token) {
     localStorage.setItem('medco_token', token);
   }
 
+  // Always keep token param visible in URL (empty string shows as "token=")
+  if (!searchParams.has('token')) {
+    const newParams = new URLSearchParams(location.search);
+    newParams.set('token', token);
+    return <Navigate to={`${location.pathname}?${newParams.toString()}`} replace />;
+  }
+
   return (
     <Routes>
       <Route path="/" element={<Dashboard token={token} />} />
-      <Route path="/report/:id" element={<ReportDetail />} />
-      <Route path="*" element={<Navigate to={`${location.pathname}${location.search}`} replace />} />
+      <Route path="/report/:id" element={<ReportDetail token={token} />} />
+      <Route
+        path="*"
+        element={<Navigate to={`${location.pathname}${location.search}`} replace />}
+      />
     </Routes>
   );
 }
@@ -34,8 +115,9 @@ function App() {
       </div>
 
       {/* Mobile App View */}
-      <div className="md:hidden min-h-screen bg-slate-50 text-slate-900">
+      <div className="md:hidden min-h-screen bg-slate-50 pb-28 text-slate-900">
         <AppRoutes />
+        <GlobalBottomNav />
       </div>
     </BrowserRouter>
   );

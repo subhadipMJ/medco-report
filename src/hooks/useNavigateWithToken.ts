@@ -17,7 +17,7 @@ export function useNavigateWithToken() {
       const [pathname, search = ''] = toStr.split('?');
       const urlSearch = new URLSearchParams(search);
 
-      if (token && !urlSearch.has('token')) {
+      if (token !== null && !urlSearch.has('token')) {
         urlSearch.set('token', token);
       }
 

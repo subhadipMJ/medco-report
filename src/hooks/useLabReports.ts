@@ -3,6 +3,8 @@ import { fetchLabReports } from '../services/api';
 import { LabReport, GroupedByTestType } from '../types/api';
 
 const groupReports = (lists: LabReport[]): GroupedByTestType[] => {
+  if (!lists || lists.length === 0) return [];
+
   const testTypeMap = new Map<number, GroupedByTestType>();
 
   lists.forEach(report => {
@@ -60,8 +62,8 @@ export const useLabReports = (token: string | null): UseLabReportsResult => {
 
     fetchLabReports(token)
       .then(res => {
-        setRawList(res.lists || []);
-        setData(groupReports(res.lists || []));
+        setRawList(res.data || []);
+        setData(groupReports(res.data || []));
       })
       .catch(err => {
         setError(err.message || 'Failed to fetch lab reports');
