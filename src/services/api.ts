@@ -11,14 +11,24 @@ const inFlightTypeDetails = new Map<string, Promise<LabReportTypeData>>();
 const inFlightGroupDetails = new Map<string, Promise<LabReportGroupData>>();
 const inFlightParameterDetails = new Map<string, Promise<LabReportParameterData>>();
 
-export const fetchLabReports = async (token: string): Promise<LabReportListResponse> => {
-  const cacheKey = `lists-${token.slice(-8)}`;
+export const fetchLabReports = async (
+  token: string,
+  search?: string,
+  start_date?: string,
+  end_date?: string,
+): Promise<LabReportListResponse> => {
+  const cacheKey = `lists-${token.slice(-8)}-${search || ''}-${start_date || ''}-${end_date || ''}`;
   if (inFlightLists.has(cacheKey)) {
     return inFlightLists.get(cacheKey)!;
   }
 
   const promise = (async () => {
     try {
+      const body: Record<string, string> = {};
+      if (search) body.search_query = search;
+      if (start_date) body.start_date = start_date;
+      if (end_date) body.end_date = end_date;
+
       const response = await fetch(`${BASE_URL}/web/reports`, {
         method: 'POST',
         headers: {
@@ -26,6 +36,7 @@ export const fetchLabReports = async (token: string): Promise<LabReportListRespo
           'Content-Type': 'application/json',
           'Accept': 'application/json',
         },
+        body: Object.keys(body).length ? JSON.stringify(body) : undefined,
       });
 
       if (response.status === 429) {
@@ -70,7 +81,7 @@ export const fetchLabReportDetails = async (
 
   const promise = (async () => {
     try {
-      const response = await fetch(`${BASE_URL}/web/test-records`, {
+      const response = await fetch(`${BASE_URL}/web/reports/${testId}`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -78,7 +89,7 @@ export const fetchLabReportDetails = async (
           'Accept': 'application/json',
         },
         body: JSON.stringify({
-          test_id: testId,
+          // test_id: testId,
           ...(startDate ? { start_date: startDate } : {}),
           ...(endDate ? { end_date: endDate } : {}),
         }),

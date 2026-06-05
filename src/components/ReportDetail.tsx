@@ -334,7 +334,7 @@ const ReportDetail = ({ token }: ReportDetailsProps) => {
             </button>
           </div>
 
-          {groups.length > 0 && (
+          {/* {groups.length > 0 && (
             <div className="mb-3 flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
               {groups.map((g) => (
                 <button
@@ -350,7 +350,7 @@ const ReportDetail = ({ token }: ReportDetailsProps) => {
                 </button>
               ))}
             </div>
-          )}
+          )} */}
 
           <div className="flex flex-col gap-2">
             <div className="flex items-center gap-1.5 text-sm text-slate-600">

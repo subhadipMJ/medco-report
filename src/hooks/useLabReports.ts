@@ -39,6 +39,12 @@ const groupReports = (lists: LabReport[]): GroupedByTestType[] => {
   return Array.from(testTypeMap.values());
 };
 
+interface UseLabReportsFilters {
+  search?: string;
+  start_date?: string;
+  end_date?: string;
+}
+
 interface UseLabReportsResult {
   data: GroupedByTestType[];
   rawList: LabReport[];
@@ -47,7 +53,10 @@ interface UseLabReportsResult {
   refetch: () => void;
 }
 
-export const useLabReports = (token: string | null): UseLabReportsResult => {
+export const useLabReports = (
+  token: string | null,
+  filters: UseLabReportsFilters = {},
+): UseLabReportsResult => {
   const [data, setData] = useState<GroupedByTestType[]>([]);
   const [rawList, setRawList] = useState<LabReport[]>([]);
   const [loading, setLoading] = useState(false);
@@ -60,16 +69,17 @@ export const useLabReports = (token: string | null): UseLabReportsResult => {
     setLoading(true);
     setError(null);
 
-    fetchLabReports(token)
+    fetchLabReports(token, filters.search, filters.start_date, filters.end_date)
       .then(res => {
-        setRawList(res.data || []);
-        setData(groupReports(res.data || []));
+        const list = Array.isArray(res.data.data) ? res.data.data : [];
+        setRawList(list);
+        setData(groupReports(list));
       })
       .catch(err => {
         setError(err.message || 'Failed to fetch lab reports');
       })
       .finally(() => setLoading(false));
-  }, [token, trigger]);
+  }, [token, trigger, filters.search, filters.start_date, filters.end_date]);
 
   const refetch = () => setTrigger(t => t + 1);
 

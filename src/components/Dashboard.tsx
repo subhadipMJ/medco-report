@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
-import { Activity, Droplet, RefreshCw, FlaskConical, TestTube2, Heart, Loader2, ChevronDown, ChevronUp } from 'lucide-react';
+import { Activity, Droplet, RefreshCw, FlaskConical, TestTube2, Loader2, ChevronDown, ChevronUp, Download, Search, CalendarDays } from 'lucide-react';
+import { useDebounce } from '../hooks/useDebounce';
 import { useSearchParams } from 'react-router-dom';
 import { useNavigateWithToken } from '../hooks/useNavigateWithToken';
 import { useLabReports } from '../hooks/useLabReports';
@@ -15,42 +16,6 @@ const testTypeIcon = (keyword: string) => {
 };
 
 type TrendDirection = 'up' | 'down' | 'flat';
-
-const trendTone = (direction: TrendDirection) => {
-  if (direction === 'up') {
-    return {
-      cardHover: 'hover:border-rose-200/80 hover:shadow-[0_25px_50px_rgba(244,63,94,0.12)]',
-      badge: 'text-rose-500 bg-rose-50 border-rose-200',
-      current: 'text-rose-500',
-      currentLabel: 'text-rose-500/80',
-      iconTone: 'bg-gradient-to-br from-rose-100 to-pink-50 border-rose-200/70 text-rose-500',
-      surfaceGlow: 'from-rose-500/15 via-pink-400/8 to-transparent',
-      valuePanel: 'bg-rose-50/70 border-rose-100',
-    };
-  }
-
-  if (direction === 'down') {
-    return {
-      cardHover: 'hover:border-emerald-200/80 hover:shadow-[0_25px_50px_rgba(16,185,129,0.12)]',
-      badge: 'text-emerald-500 bg-emerald-50 border-emerald-200',
-      current: 'text-emerald-500',
-      currentLabel: 'text-emerald-500/80',
-      iconTone: 'bg-gradient-to-br from-emerald-100 to-teal-50 border-emerald-200/70 text-emerald-500',
-      surfaceGlow: 'from-emerald-500/15 via-teal-400/8 to-transparent',
-      valuePanel: 'bg-emerald-50/70 border-emerald-100',
-    };
-  }
-
-  return {
-    cardHover: 'hover:border-slate-300/80 hover:shadow-[0_25px_50px_rgba(15,23,42,0.08)]',
-    badge: 'text-slate-500 bg-slate-50 border-slate-200',
-    current: 'text-slate-700',
-    currentLabel: 'text-slate-500',
-    iconTone: 'bg-gradient-to-br from-slate-100 to-slate-50 border-slate-200/80 text-slate-600',
-    surfaceGlow: 'from-slate-400/12 via-slate-300/6 to-transparent',
-    valuePanel: 'bg-slate-50/80 border-slate-200/80',
-  };
-};
 
 function GroupWiseView({ groupedReports }: { groupedReports: GroupedByTestType[] }) {
   const [expanded, setExpanded] = useState<number | null>(null);
@@ -167,12 +132,39 @@ const Dashboard = ({ token }: DashboardProps) => {
   const [searchParams] = useSearchParams();
   const activeTab = (searchParams.get('tab') as 'reports' | 'groupWise' | 'analysis' | 'compare') || 'reports';
 
-  const { data: groupedReports, rawList, loading, error, refetch } = useLabReports(token || null);
+  const [datePreset, setDatePreset] = useState<'all' | 'today' | 'yesterday' | 'custom'>('all');
+  const [customStart, setCustomStart] = useState('');
+  const [customEnd, setCustomEnd] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
+  const debouncedSearchQuery = useDebounce(searchQuery, 500);
+
+  const dateFilters = useMemo(() => {
+    if (datePreset === 'today') {
+      const today = new Date().toISOString().split('T')[0];
+      return { start_date: today, end_date: today };
+    }
+    if (datePreset === 'yesterday') {
+      const today = new Date().toISOString().split('T')[0];
+      const d = new Date();
+      d.setDate(d.getDate() - 1);
+      const yesterday = d.toISOString().split('T')[0];
+      return { start_date: yesterday, end_date: today };
+    }
+    if (datePreset === 'custom' && customStart && customEnd) {
+      return { start_date: customStart, end_date: customEnd };
+    }
+    return {};
+  }, [datePreset, customStart, customEnd]);
+
+  const { data: groupedReports, rawList, loading, error, refetch } = useLabReports(token || null, {
+    search: debouncedSearchQuery.trim() || undefined,
+    ...dateFilters,
+  });
 
   const trendCards = useMemo(() => {
     const parameterMap = new Map<string, LabReport[]>();
 
-    rawList.forEach((report) => {
+    (Array.isArray(rawList) ? rawList : []).forEach((report) => {
       const key = report.parameter_id;
       if (!parameterMap.has(key)) {
         parameterMap.set(key, []);
@@ -201,9 +193,21 @@ const Dashboard = ({ token }: DashboardProps) => {
         const direction: TrendDirection =
           delta === null ? 'flat' : delta > 0 ? 'up' : delta < 0 ? 'down' : 'flat';
 
+        const minRange = current.parameter.start_range ? Number.parseFloat(current.parameter.start_range) : null;
+        const maxRange = current.parameter.end_range ? Number.parseFloat(current.parameter.end_range) : null;
+        const valueColor =
+          minRange !== null && maxRange !== null && Number.isFinite(currentNumeric)
+            ? currentNumeric < minRange
+              ? '#2563EB'
+              : currentNumeric > maxRange
+                ? '#E11D48'
+                : '#228B22'
+            : '#228B22';
+
         return {
           key: `${current.parameter_id}-${current.test_id}`,
           testId: current.test_id,
+          parameterId: current.parameter_id,
           keyword: current.test_type.key_word,
           name: current.parameter.name,
           unit: current.parameter.unit || '-',
@@ -212,6 +216,12 @@ const Dashboard = ({ token }: DashboardProps) => {
           delta,
           direction,
           latestDate: current.date_of_test,
+          minRange,
+          maxRange,
+          valueColor,
+          testReport: current.test_report,
+          labName: current.lab_name,
+          doctorName: current.doctor_name,
         };
       })
       .sort((a, b) => new Date(b.latestDate).getTime() - new Date(a.latestDate).getTime());
@@ -225,14 +235,14 @@ const Dashboard = ({ token }: DashboardProps) => {
         <div className="px-6 pt-8 pb-6 relative z-10 bg-white">
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-4">
-              <div className="relative group cursor-pointer">
+              {/* <div className="relative group cursor-pointer">
                 <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 p-[2px] shadow-lg shadow-blue-500/30">
                   <div className="w-full h-full bg-white rounded-[14px] flex items-center justify-center overflow-hidden">
                     <Heart size={22} className="text-blue-600" />
                   </div>
                 </div>
                 <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-emerald-500 rounded-full border-[3px] border-white shadow-sm"></div>
-              </div>
+              </div> */}
               <div>
                 <p className="text-xs text-slate-500 font-semibold tracking-wider uppercase mb-1">Health Dashboard</p>
                 <p className="text-2xl font-black text-slate-900 m-0 tracking-tight leading-none">My Reports</p>
@@ -246,6 +256,58 @@ const Dashboard = ({ token }: DashboardProps) => {
                 <Menu size={18} className="text-slate-600" />
               </button> */}
             </div>
+          </div>
+
+          {/* Search & Date Filter */}
+          <div className="space-y-3 mb-6">
+            <div className="relative">
+              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search test, lab name or doctor name..."
+                className="w-full h-10 rounded-xl border border-slate-200 bg-slate-50 pl-9 pr-3 text-sm font-medium text-slate-800 placeholder:text-slate-400 outline-none focus:border-blue-400 focus:bg-white transition-colors"
+              />
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white p-1 shadow-sm">
+                {(['all', 'today', 'yesterday', 'custom'] as const).map((preset) => (
+                  <button
+                    key={preset}
+                    onClick={() => setDatePreset(preset)}
+                    className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition-all ${
+                      datePreset === preset
+                        ? 'bg-slate-900 text-white'
+                        : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'
+                    }`}
+                  >
+                    {preset === 'all' && 'All'}
+                    {preset === 'today' && 'Today'}
+                    {preset === 'yesterday' && 'Yesterday'}
+                    {preset === 'custom' && 'Custom'}
+                  </button>
+                ))}
+              </div>
+            </div>
+            {datePreset === 'custom' && (
+              <div className="flex items-center gap-2">
+                <CalendarDays size={14} className="text-slate-400" />
+                <input
+                  type="date"
+                  value={customStart}
+                  onChange={(e) => setCustomStart(e.target.value)}
+                  className="h-9 flex-1 rounded-xl border border-slate-300 bg-white px-2 text-xs font-medium text-slate-800 outline-none focus:border-slate-500"
+                />
+                <span className="text-xs text-slate-400">to</span>
+                <input
+                  type="date"
+                  value={customEnd}
+                  onChange={(e) => setCustomEnd(e.target.value)}
+                  className="h-9 flex-1 rounded-xl border border-slate-300 bg-white px-2 text-xs font-medium text-slate-800 outline-none focus:border-slate-500"
+                />
+              </div>
+            )}
           </div>
 
           {/* Health Score Card - Neumorphic Light */}
@@ -296,37 +358,73 @@ const Dashboard = ({ token }: DashboardProps) => {
             )}
 
             {!loading && !error && activeTab === 'reports' && trendCards.length > 0 && (
-              <div className="space-y-4">
-                {trendCards.map((card) => {
-                  const tone = trendTone(card.direction);
-                  return (
-                    <div
-                      key={card.key}
-                      className={`group relative overflow-hidden rounded-[28px] border border-slate-200/80 bg-white/90 p-5 shadow-[0_12px_35px_rgba(15,23,42,0.06)] backdrop-blur-sm ${tone.cardHover} hover:-translate-y-1 transition-all duration-300 cursor-pointer`}
-                      onClick={() => navigate(`/report/${card.testId}`)}
-                    >
-                      <div className={`pointer-events-none absolute -right-10 -top-10 h-32 w-32 rounded-full bg-gradient-to-br blur-2xl transition-transform duration-500 group-hover:scale-125 ${tone.surfaceGlow}`}></div>
-                      <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-slate-300/60 to-transparent"></div>
-                      <div className="flex items-center justify-between mb-4">
-                        <div className="flex items-center gap-3">
-                          <div className={`w-11 h-11 rounded-2xl border flex items-center justify-center shadow-sm ${tone.iconTone}`}>
-                            {testTypeIcon(card.keyword)}
-                          </div>
-                          <div>
-                            <p className="text-[15px] font-extrabold text-slate-900 m-0 tracking-tight leading-none">{card.name}</p>
-                            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.16em] m-0 mt-1">{card.unit}</p>
-                          </div>
-                        </div>
+              <div className="space-y-3">
+                {trendCards.map((card) => (
+                  <div
+                    key={card.key}
+                    className="group cursor-pointer rounded-2xl border border-slate-200/80 bg-white p-5 shadow-[0_8px_24px_rgba(15,23,42,0.06)] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_12px_32px_rgba(15,23,42,0.1)]"
+                    onClick={() => navigate(`/report/${card.parameterId}`)}
+                  >
+                    <div className="mb-2 flex items-start justify-between gap-4">
+                      <div>
+                        <p className="text-lg font-semibold leading-none text-slate-900">
+                          {card.name}
+                        </p>
+                        <p className="mt-1 text-xs text-slate-500">
+                          {card.minRange !== null && card.maxRange !== null
+                            ? `Normal: ${card.minRange}-${card.maxRange} ${card.unit}`
+                            : `Normal range unavailable`}
+                        </p>
+                        <p className="mt-1 text-[10px] text-slate-400">
+                          {card.labName}
+                          {card.doctorName && ` · Dr. ${card.doctorName}`}
+                        </p>
                       </div>
-                      <div className={`relative rounded-2xl border px-4 py-4 text-center ${tone.valuePanel}`}>
-                        <div>
-                          <p className={`text-[10px] font-bold uppercase tracking-[0.2em] mb-1 ${tone.currentLabel}`}>Current Value</p>
-                          <p className={`text-2xl font-mono font-black leading-none ${tone.current}`}>{card.currentValue}</p>
-                        </div>
+                      <div className="flex items-end gap-1.5 pt-1">
+                        <span
+                          className="text-3xl font-semibold leading-none"
+                          style={{ color: card.valueColor }}
+                        >
+                          {card.currentValue}
+                        </span>
+                        <span className="pb-1 text-sm text-slate-500">
+                          {card.unit}
+                        </span>
                       </div>
                     </div>
-                  );
-                })}
+                    {card.testReport && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          const url = card.testReport;
+                          if (!url) return;
+                          fetch(url, { method: 'GET', mode: 'cors' })
+                            .then((res) => {
+                              if (!res.ok) throw new Error(`Download failed: ${res.status}`);
+                              return res.blob();
+                            })
+                            .then((blob) => {
+                              const blobUrl = window.URL.createObjectURL(blob);
+                              const a = document.createElement('a');
+                              a.href = blobUrl;
+                              const filename = url.split('/').pop() || 'report.pdf';
+                              a.download = filename;
+                              document.body.appendChild(a);
+                              a.click();
+                              a.remove();
+                              window.URL.revokeObjectURL(blobUrl);
+                            })
+                            .catch(() => {
+                              window.open(url, '_blank', 'noopener,noreferrer');
+                            });
+                        }}
+                        className="mt-2 inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-100 transition-colors"
+                      >
+                        <Download size={14} /> Download Report
+                      </button>
+                    )}
+                  </div>
+                ))}
               </div>
             )}
 

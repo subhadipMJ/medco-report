@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigate } from
 import Dashboard from './components/Dashboard';
 import ReportDetail from './components/ReportDetail';
 import { FileText, LayoutGrid, BarChart3, GitCompare } from 'lucide-react';
+import Analaytics from './components/Analaytics';
 
 function GlobalBottomNav() {
   const location = useLocation();
@@ -10,11 +11,13 @@ function GlobalBottomNav() {
   const token = searchParams.get('token') ?? '';
   const tabParam = searchParams.get('tab');
   const activeTab =
-    tabParam === 'reports' || tabParam === 'groupWise' || tabParam === 'analysis' || tabParam === 'compare'
-      ? tabParam
-      : 'reports';
+    location.pathname === '/analaytics'
+      ? 'analysis'
+      : tabParam === 'reports' || tabParam === 'groupWise' || tabParam === 'analysis' || tabParam === 'compare'
+        ? tabParam
+        : 'reports';
 
-  const navigateToTab = (tab: 'reports' | 'groupWise' | 'analysis' | 'compare') => {
+  const navigateToTab = (tab: 'reports' | 'groupWise' | 'compare') => {
     const next = new URLSearchParams();
     next.set('token', token);
     next.set('tab', tab);
@@ -47,7 +50,11 @@ function GlobalBottomNav() {
           <span className="text-[10px] font-bold tracking-wide">Group Wise</span>
         </button>
         <button
-          onClick={() => navigateToTab('analysis')}
+          onClick={() => {
+            const next = new URLSearchParams();
+            next.set('token', token);
+            navigate(`/analaytics?${next.toString()}`);
+          }}
           className={`flex flex-1 flex-col items-center gap-1 rounded-2xl p-2 transition-all ${
             activeTab === 'analysis'
               ? 'bg-blue-50 text-blue-600'
@@ -95,6 +102,7 @@ function AppRoutes() {
     <Routes>
       <Route path="/" element={<Dashboard token={token} />} />
       <Route path="/report/:id" element={<ReportDetail token={token} />} />
+      <Route path="/analaytics" element={<Analaytics token={token} />} />
       <Route
         path="*"
         element={<Navigate to={`${location.pathname}${location.search}`} replace />}
