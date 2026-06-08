@@ -16,20 +16,22 @@ export const fetchLabReports = async (
   search?: string,
   start_date?: string,
   end_date?: string,
+  page?: number,
 ): Promise<LabReportListResponse> => {
-  const cacheKey = `lists-${token.slice(-8)}-${search || ''}-${start_date || ''}-${end_date || ''}`;
+  const cacheKey = `lists-${token.slice(-8)}-${search || ''}-${start_date || ''}-${end_date || ''}-${page || 1}`;
   if (inFlightLists.has(cacheKey)) {
     return inFlightLists.get(cacheKey)!;
   }
 
   const promise = (async () => {
     try {
-      const body: Record<string, string> = {};
+      const body: Record<string, string | number> = {};
       if (search) body.search_query = search;
       if (start_date) body.start_date = start_date;
       if (end_date) body.end_date = end_date;
+      // if (page) body.page = page;
 
-      const response = await fetch(`${BASE_URL}/web/reports`, {
+      const response = await fetch(`${BASE_URL}/web/reports?page=${page || 1}`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,

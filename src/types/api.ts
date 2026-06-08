@@ -32,6 +32,7 @@ export interface TestParameter {
   method: string;
   created_at: string;
   updated_at: string;
+  status?: "high" | "normal" | "low";
 }
 
 export interface LabReport {
@@ -48,6 +49,7 @@ export interface LabReport {
   test_report: string | null;
   created_at: string;
   updated_at: string;
+  status?: "high" | "normal" | "low";
   test_type: TestType;
   group: TestGroup;
   parameter: TestParameter;

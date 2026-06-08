@@ -8,7 +8,7 @@ function GlobalBottomNav() {
   const location = useLocation();
   const navigate = useNavigate();
   const searchParams = new URLSearchParams(location.search);
-  const token = searchParams.get('token') ?? '';
+  const token = localStorage.getItem('token') || searchParams.get('token') || '';
   const tabParam = searchParams.get('tab');
   const activeTab =
     location.pathname === '/analaytics'

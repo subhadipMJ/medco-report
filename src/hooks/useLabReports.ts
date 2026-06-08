@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { fetchLabReports } from '../services/api';
 import { LabReport, GroupedByTestType } from '../types/api';
 
@@ -43,12 +43,22 @@ interface UseLabReportsFilters {
   search?: string;
   start_date?: string;
   end_date?: string;
+  page?: number;
+}
+
+interface PaginationInfo {
+  currentPage: number;
+  lastPage: number;
+  total: number;
+  perPage: number;
 }
 
 interface UseLabReportsResult {
   data: GroupedByTestType[];
   rawList: LabReport[];
+  pagination: PaginationInfo | null;
   loading: boolean;
+  isLoadingMore: boolean;
   error: string | null;
   refetch: () => void;
 }
@@ -59,29 +69,73 @@ export const useLabReports = (
 ): UseLabReportsResult => {
   const [data, setData] = useState<GroupedByTestType[]>([]);
   const [rawList, setRawList] = useState<LabReport[]>([]);
+  const [pagination, setPagination] = useState<PaginationInfo | null>(null);
   const [loading, setLoading] = useState(false);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [trigger, setTrigger] = useState(0);
+
+  const prevFiltersRef = useRef({ search: '', start_date: '', end_date: '', page: 1 });
+  const accumulatedRef = useRef<LabReport[]>([]);
 
   useEffect(() => {
     if (!token) return;
 
-    setLoading(true);
+    const currentFilters = {
+      search: filters.search || '',
+      start_date: filters.start_date || '',
+      end_date: filters.end_date || '',
+      page: filters.page || 1,
+    };
+
+    const filtersChanged =
+      currentFilters.search !== prevFiltersRef.current.search ||
+      currentFilters.start_date !== prevFiltersRef.current.start_date ||
+      currentFilters.end_date !== prevFiltersRef.current.end_date;
+
+    const isFirstPage = filtersChanged || currentFilters.page === 1;
+
+    if (isFirstPage) {
+      setLoading(true);
+    } else {
+      setIsLoadingMore(true);
+    }
     setError(null);
 
-    fetchLabReports(token, filters.search, filters.start_date, filters.end_date)
+    fetchLabReports(token, filters.search, filters.start_date, filters.end_date, filters.page)
       .then(res => {
         const list = Array.isArray(res.data.data) ? res.data.data : [];
-        setRawList(list);
-        setData(groupReports(list));
+
+        if (isFirstPage) {
+          accumulatedRef.current = list;
+        } else {
+          accumulatedRef.current = [...accumulatedRef.current, ...list];
+        }
+
+        setRawList(accumulatedRef.current);
+        setData(groupReports(accumulatedRef.current));
+        setPagination({
+          currentPage: res.data.current_page,
+          lastPage: res.data.last_page,
+          total: res.data.total,
+          perPage: res.data.per_page,
+        });
+
+        prevFiltersRef.current = currentFilters;
       })
       .catch(err => {
         setError(err.message || 'Failed to fetch lab reports');
       })
-      .finally(() => setLoading(false));
-  }, [token, trigger, filters.search, filters.start_date, filters.end_date]);
+      .finally(() => {
+        if (isFirstPage) {
+          setLoading(false);
+        } else {
+          setIsLoadingMore(false);
+        }
+      });
+  }, [token, trigger, filters.search, filters.start_date, filters.end_date, filters.page]);
 
   const refetch = () => setTrigger(t => t + 1);
 
-  return { data, rawList, loading, error, refetch };
+  return { data, rawList, pagination, loading, isLoadingMore, error, refetch };
 };

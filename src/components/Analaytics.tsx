@@ -32,8 +32,8 @@ const Analaytics = ({ token }: DashboardProps) => {
   const defaultTab =
     queryTab === 'reports' || queryTab === 'compare' || queryTab === 'rx'
       ? queryTab
-      : 'reports';
-  const [activeTab, setActiveTab] = useState<'reports' | 'compare' | 'rx'>('reports');
+      : 'compare';
+  const [activeTab, setActiveTab] = useState<'reports' | 'compare' | 'rx'>('compare');
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const navigate = useNavigateWithToken();
 
@@ -68,14 +68,14 @@ const Analaytics = ({ token }: DashboardProps) => {
         <div className="px-6 pt-8 pb-6 relative z-10 bg-white">
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-4">
-              <div className="relative group cursor-pointer">
+              {/* <div className="relative group cursor-pointer">
                 <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 p-[2px] shadow-lg shadow-blue-500/30">
                   <div className="w-full h-full bg-white rounded-[14px] flex items-center justify-center overflow-hidden">
                     <Heart size={22} className="text-blue-600" />
                   </div>
                 </div>
                 <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-emerald-500 rounded-full border-[3px] border-white shadow-sm"></div>
-              </div>
+              </div> */}
               <div>
                 <p className="text-xs text-slate-500 font-semibold tracking-wider uppercase mb-1">Health Dashboard</p>
                 <p className="text-2xl font-black text-slate-900 m-0 tracking-tight leading-none">My Reports</p>

@@ -4,12 +4,12 @@ import { useNavigateWithToken } from "../hooks/useNavigateWithToken";
 import { useReportDetails } from "../hooks/useReportDetails";
 import {
   ArrowLeft,
-  ArrowDown,
-  ArrowUp,
   Download,
   CalendarDays,
   ChevronDown,
   ChevronUp,
+  Building2,
+  User,
 } from "lucide-react";
 import {
   CartesianGrid,
@@ -26,14 +26,20 @@ function formatDateInput(d: Date): string {
   return d.toISOString().split("T")[0];
 }
 
-function formatShortDate(dateStr: string): string {
-  const d = new Date(dateStr);
-  return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
-}
+// function formatShortDate(dateStr: string): string {
+//   const d = new Date(dateStr);
+//   return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+// }
 
 function formatChartDate(dateStr: string): string {
+  const parts = dateStr.split("-");
+  if (parts.length === 3) {
+    const [day, month, year] = parts;
+    const d = new Date(`${year}-${month}-${day}`);
+    return d.toLocaleDateString("en-US", { day: "numeric", month: "long", year: "numeric" });
+  }
   const d = new Date(dateStr);
-  return d.toLocaleDateString("en-US", { month: "short", year: "2-digit" });
+  return d.toLocaleDateString("en-US", { day: "numeric", month: "long", year: "numeric" });
 }
 
 function parseNumericValue(value: string): number | null {
@@ -71,13 +77,6 @@ function getStatusColor(status: ValueStatus): string {
   return "#7A7A7A";
 }
 
-function getStatusLabel(status: ValueStatus): string {
-  if (status === "normal") return "Normal";
-  if (status === "high") return "High";
-  if (status === "low") return "Low";
-  return "N/A";
-}
-
 interface ParameterCardData {
   name: string;
   unit: string;
@@ -91,6 +90,8 @@ interface ParameterCardData {
   maxRange: number | null;
   valueStatus: ValueStatus;
   trend: "up" | "down" | "flat";
+  labName: string;
+  doctorName: string;
 }
 
 interface ChartPoint {
@@ -116,8 +117,10 @@ const ReportDetail = ({ token }: ReportDetailsProps) => {
   const [endDate, setEndDate] = useState<string | undefined>(() =>
     formatDateInput(new Date()),
   );
-  const [preset, setPreset] = useState<"today" | "yesterday" | "3m" | "custom">("3m");
-  const [activeGroup, setActiveGroup] = useState<string | null>(null);
+  const [preset, setPreset] = useState<"today" | "yesterday" | "3m" | "custom">(
+    "3m",
+  );
+  const [activeGroup, setActiveGroup] = useState<boolean>(false);
   const [allValuesOpen, setAllValuesOpen] = useState(true);
 
   const { data, loading, error } = useReportDetails(
@@ -154,6 +157,7 @@ const ReportDetail = ({ token }: ReportDetailsProps) => {
 
   const groupedByParameter = useMemo(() => {
     if (!data) return [];
+
     const map = new Map<string, LabReport[]>();
     data.forEach((r) => {
       if (!r.parameter?.name) return;
@@ -203,6 +207,8 @@ const ReportDetail = ({ token }: ReportDetailsProps) => {
           maxRange,
           valueStatus,
           trend,
+          labName: latestRecord.lab_name || "",
+          doctorName: latestRecord.doctor_name || "",
         };
       })
       .sort((a, b) => {
@@ -249,27 +255,19 @@ const ReportDetail = ({ token }: ReportDetailsProps) => {
 
   useEffect(() => {
     if (groups.length === 0) {
-      setActiveGroup(null);
-      return;
+      setActiveGroup(false);
     }
+  }, [groups]);
 
-    if (!activeGroup || !groups.includes(activeGroup)) {
-      setActiveGroup(groups[0]);
-    }
-  }, [groups, activeGroup]);
+  // const filteredParameters = useMemo(() => {
+  //   if (activeGroup || groups.length === 0) return groupedByParameter;
+  //   return [];
+  // }, [groupedByParameter, activeGroup, groups]);
 
-  const filteredParameters = useMemo(() => {
-    if (!activeGroup) return groupedByParameter;
-    return groupedByParameter.filter((p) => p.groupName === activeGroup);
-  }, [groupedByParameter, activeGroup]);
-
-  const testTypeName =
-    filteredParameters[0]?.testTypeName ||
-    data?.[0]?.test_type?.name ||
-    "Test Details";
-  const testDate = data?.[0]?.date_of_test || "";
-  const labName = data?.[0]?.lab_name || "";
-  const doctorName = data?.[0]?.doctor_name || "";
+  const testTypeName = data?.[0]?.parameter?.name || "Test Details";
+  // const testDate = data?.[0]?.date_of_test || "";
+  // const labName = data?.[0]?.lab_name || "";
+  // const doctorName = data?.[0]?.doctor_name || "";
 
   if (loading) {
     return (
@@ -325,13 +323,14 @@ const ReportDetail = ({ token }: ReportDetailsProps) => {
             <h1 className="max-w-[245px] truncate px-2 text-center text-xl font-semibold leading-tight text-slate-900 sm:max-w-[280px] sm:text-2xl">
               {testTypeName}
             </h1>
-            <button
+            <div></div>
+            {/* <button
               className="flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200/80 bg-white/80 text-slate-700 shadow-sm"
               aria-label="Actions"
               title="Actions"
             >
               <Download size={16} />
-            </button>
+            </button> */}
           </div>
 
           {/* {groups.length > 0 && (
@@ -420,85 +419,140 @@ const ReportDetail = ({ token }: ReportDetailsProps) => {
         </div>
 
         <div className="px-4 pb-6 pt-5">
-          <button
-            onClick={() => setAllValuesOpen((prev) => !prev)}
-            className="mb-2 flex w-full items-center justify-between text-left"
-          >
-            <h2 className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-500">
-              All Values
-            </h2>
-            {allValuesOpen ? (
-              <ChevronUp size={18} className="text-slate-400" />
-            ) : (
-              <ChevronDown size={18} className="text-slate-400" />
-            )}
-          </button>
-          {allValuesOpen && (
-            <div className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white/80 shadow-[0_8px_20px_rgba(15,23,42,0.08)]">
-            {filteredParameters.map((param, idx) => {
-              const statusLabel = getStatusLabel(param.valueStatus);
-              const statusColor = getStatusColor(param.valueStatus);
-              return (
-                <div
-                  key={param.name}
-                  className={`flex items-center justify-between px-4 py-3.5 ${
-                    idx < filteredParameters.length - 1
-                      ? "border-b border-slate-100"
-                      : ""
+          <div className="mb-2 flex w-full items-center justify-between">
+            <button
+              onClick={() => setAllValuesOpen((prev) => !prev)}
+              className="text-left"
+            >
+              <h2 className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-500">
+                Reports
+              </h2>
+            </button>
+            <div className="flex items-center gap-2">
+              {/* {groups.length > 0 && (
+                <button
+                  onClick={() => setActiveGroup((prev) => !prev)}
+                  className={`rounded-full px-2.5 py-0.5 text-[10px] font-semibold transition-colors ${
+                    activeGroup
+                      ? "bg-slate-800 text-white"
+                      : "bg-slate-100 text-slate-500"
                   }`}
                 >
-                  <div className="flex items-start gap-3">
-                    <span
-                      className="mt-2 inline-block h-2.5 w-2.5 rounded-full"
-                      style={{ backgroundColor: statusColor }}
-                    />
-                    <div>
-                      <p className="text-base font-semibold leading-tight text-slate-900">
-                        {param.name}
-                      </p>
-                      <p className="mt-0.5 text-xs text-slate-500">
-                        {param.minRange !== null && param.maxRange !== null
-                          ? `Ref: ${param.minRange}-${param.maxRange} ${param.unit}`
-                          : `Ref: unavailable`}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <div className="flex items-center justify-end gap-1 text-2xl font-semibold leading-none text-slate-900">
-                      <span>{param.latestValue}</span>
-                      {param.trend === "up" && (
-                        <ArrowUp size={16} className="text-emerald-600" />
-                      )}
-                      {param.trend === "down" && (
-                        <ArrowDown size={16} className="text-rose-600" />
-                      )}
-                    </div>
-                    <div className="mt-1">
-                      <span
-                        className="rounded-md px-2 py-0.5 text-xs font-semibold"
-                        style={{
-                          backgroundColor:
-                            param.valueStatus === "normal"
-                              ? "#DDE9D2"
-                              : param.valueStatus === "unknown"
-                                ? "#E8E8E8"
-                                : "#F4DDD8",
-                          color:
-                            param.valueStatus === "normal"
-                              ? "#4D7B2E"
-                              : param.valueStatus === "unknown"
-                                ? "#5D5D5D"
-                                : "#A0452B",
-                        }}
-                      >
-                        {statusLabel}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
+                  {activeGroup ? "All" : "None"}
+                </button>
+              )} */}
+              <button
+                onClick={() => setAllValuesOpen((prev) => !prev)}
+                className="text-slate-400"
+              >
+                {allValuesOpen ? (
+                  <ChevronUp size={18} />
+                ) : (
+                  <ChevronDown size={18} />
+                )}
+              </button>
+            </div>
           </div>
+          {allValuesOpen && (
+            <div className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white/80 shadow-[0_8px_20px_rgba(15,23,42,0.08)]">
+              {data?.map((record, idx) => {
+                const status: string = record.status || "normal";
+                const statusColor =
+                  status === "normal"
+                    ? "#148E69"
+                    : status === "high"
+                      ? "#1F7AE0"
+                      : status === "low"
+                        ? "#D94848"
+                        : "#7A7A7A";
+                const statusLabel =
+                  status === "normal"
+                    ? "Normal"
+                    : status === "high"
+                      ? "High"
+                      : status === "low"
+                        ? "Low"
+                        : "N/A";
+                // const minRange = record.parameter?.start_range
+                //   ? Number.parseFloat(record.parameter.start_range)
+                //   : null;
+                // const maxRange = record.parameter?.end_range
+                //   ? Number.parseFloat(record.parameter.end_range)
+                //   : null;
+                return (
+                  <div
+                    key={`${record.parameter_id}-${record.test_id}-${idx}`}
+                    className={`flex items-center justify-between px-4 py-3.5 ${
+                      idx < data.length - 1
+                        ? "border-b border-slate-100"
+                        : ""
+                    }`}
+                  >
+                    <div className="flex items-start gap-3">
+                      <span
+                        className="mt-2 inline-block h-2.5 w-2.5 rounded-full"
+                        style={{ backgroundColor: statusColor }}
+                      />
+                      <div>
+                        {/* <p className="text-base font-semibold leading-tight text-slate-900">
+                          {record.parameter?.name || "Unknown"}
+                        </p>
+                        <p className="mt-0.5 text-xs text-slate-500">
+                          {minRange !== null && maxRange !== null
+                            ? `Ref: ${minRange}-${maxRange} ${record.parameter?.unit || "-"}`
+                            : `Ref: unavailable`}
+                        </p> */}
+                        <p className="mt-0.5 text-xl font-semibold text-slate-900">
+                          {formatChartDate(record.date_of_test)}
+                        </p>
+                        {record.doctor_name && (
+                          <p className="mt-1 flex items-center gap-1.5 text-xs text-slate-500">
+                            <User size={12} className="text-emerald-500" />
+                            <span>{record.doctor_name}</span>
+                          </p>
+                        )}
+                        {record.lab_name && (
+                          <p className="mt-0.5 flex items-center gap-1.5 text-xs text-slate-500">
+                            <Building2 size={12} className="text-blue-500" />
+                            <span>{record.lab_name}</span>
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className="flex items-center justify-end gap-1 text-2xl font-semibold leading-none text-slate-900">
+                        <span>{record.test_value}</span>
+                      </div>
+                      <div className="mt-1">
+                        <span
+                          className="rounded-md px-2 py-0.5 text-xs font-semibold"
+                          style={{
+                            backgroundColor:
+                              status === "normal"
+                                ? "#DDE9D2"
+                                : status === "high"
+                                  ? "#DBEAFE"
+                                  : status === "low"
+                                    ? "#FEE2E2"
+                                    : "#E8E8E8",
+                            color:
+                              status === "normal"
+                                ? "#148E69"
+                                : status === "high"
+                                  ? "#1F7AE0"
+                                  : status === "low"
+                                    ? "#D94848"
+                                    : "#7A7A7A",
+                          }}
+                        >
+                          {statusLabel}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           )}
         </div>
 
@@ -521,8 +575,8 @@ const ReportDetail = ({ token }: ReportDetailsProps) => {
           </div>
         )} */}
 
-        <div className="space-y-3 px-4 pt-4">
-          {filteredParameters.map((param) => {
+        <div className="space-y-3 px-4 pb-6 pt-4">
+          {groupedByParameter.map((param) => {
             const chartData = chartPointsByParameter.get(param.name) ?? [];
             const valueColor = getStatusColor(param.valueStatus);
             const values = chartData.map((p) => p.value);
@@ -551,7 +605,7 @@ const ReportDetail = ({ token }: ReportDetailsProps) => {
                         : `Normal range unavailable`}
                     </p>
                   </div>
-                  <div className="flex items-end gap-1.5 pt-1">
+                  {/* <div className="flex items-end gap-1.5 pt-1">
                     <span
                       className="text-3xl font-semibold leading-none"
                       style={{ color: valueColor }}
@@ -561,7 +615,7 @@ const ReportDetail = ({ token }: ReportDetailsProps) => {
                     <span className="pb-1 text-sm text-slate-500">
                       {param.unit}
                     </span>
-                  </div>
+                  </div> */}
                 </div>
 
                 {chartData.length > 0 ? (
@@ -586,7 +640,9 @@ const ReportDetail = ({ token }: ReportDetailsProps) => {
                           tick={{ fontSize: 11, fill: "#64748B" }}
                           axisLine={false}
                           tickLine={false}
-                          tickFormatter={(value) => formatAxisValue(Number(value))}
+                          tickFormatter={(value) =>
+                            formatAxisValue(Number(value))
+                          }
                           tickCount={4}
                           domain={[minValue - yPadding, maxValue + yPadding]}
                           width={42}
@@ -642,12 +698,12 @@ const ReportDetail = ({ token }: ReportDetailsProps) => {
           })}
         </div>
 
-        <div className="px-4 pb-6 pt-5">
+        {/* <div className="px-4 pb-6 pt-5">
           <p className="mt-4 text-center text-xs text-slate-500">
             {formatShortDate(testDate)} · {labName}
             {doctorName && ` · Dr. ${doctorName}`}
           </p>
-        </div>
+        </div> */}
       </div>
     </div>
   );
