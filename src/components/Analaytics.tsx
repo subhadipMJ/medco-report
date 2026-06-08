@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Activity, Droplet, Search, FileText, ChevronDown, CheckCircle2, TrendingUp, ArrowUpRight, ArrowDownRight, ArrowRight, History, RefreshCw, FlaskConical, TestTube2, Heart, Loader2 } from 'lucide-react';
+import { Activity, Droplet, Search, FileText, ChevronDown, CheckCircle2, TrendingUp, ArrowUpRight, ArrowDownRight, ArrowRight, History, RefreshCw, FlaskConical, TestTube2, Loader2 } from 'lucide-react';
 import { useNavigateWithToken } from '../hooks/useNavigateWithToken';
 import { useLabReports } from '../hooks/useLabReports';
 

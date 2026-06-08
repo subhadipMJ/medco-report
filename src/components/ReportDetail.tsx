@@ -1,10 +1,9 @@
 import { useParams } from "react-router-dom";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useNavigateWithToken } from "../hooks/useNavigateWithToken";
 import { useReportDetails } from "../hooks/useReportDetails";
 import {
   ArrowLeft,
-  Download,
   CalendarDays,
   ChevronDown,
   ChevronUp,
@@ -120,7 +119,6 @@ const ReportDetail = ({ token }: ReportDetailsProps) => {
   const [preset, setPreset] = useState<"today" | "yesterday" | "3m" | "custom">(
     "3m",
   );
-  const [activeGroup, setActiveGroup] = useState<boolean>(false);
   const [allValuesOpen, setAllValuesOpen] = useState(true);
 
   const { data, loading, error } = useReportDetails(
@@ -244,20 +242,6 @@ const ReportDetail = ({ token }: ReportDetailsProps) => {
       }),
     );
   }, [groupedByParameter]);
-
-  const groups = useMemo(() => {
-    const set = new Set<string>();
-    data?.forEach((r) => {
-      if (r.group?.name) set.add(r.group.name);
-    });
-    return Array.from(set);
-  }, [data]);
-
-  useEffect(() => {
-    if (groups.length === 0) {
-      setActiveGroup(false);
-    }
-  }, [groups]);
 
   // const filteredParameters = useMemo(() => {
   //   if (activeGroup || groups.length === 0) return groupedByParameter;
