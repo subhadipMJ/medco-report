@@ -8,6 +8,7 @@ function GlobalBottomNav() {
   const location = useLocation();
   const navigate = useNavigate();
   const searchParams = new URLSearchParams(location.search);
+  // ✅ FIX 1: Always read from localStorage first (it's kept in sync now)
   const token = localStorage.getItem('token') || searchParams.get('token') || '';
   const tabParam = searchParams.get('tab');
   const activeTab =
@@ -83,15 +84,22 @@ function GlobalBottomNav() {
 function AppRoutes() {
   const location = useLocation();
   const searchParams = new URLSearchParams(location.search);
-  const storedToken = localStorage.getItem('token') || 'eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiJ9.eyJhdWQiOiIzIiwianRpIjoiMjI4MmM0Yjg1YzA3MGEyNWM1ZGI4ZmNkMWIxMGYyMGFlM2JhMjdjMDMzZGEwN2U4OTVlYTIyYzkyZWI4ZmI4YzU0MTk4ZmZjOTBhYjlmYWUiLCJpYXQiOjE3ODA1NzA2MTkuMTM5NTAxLCJuYmYiOjE3ODA1NzA2MTkuMTM5NTA0LCJleHAiOjE4MTIxMDY2MTkuMTI5NzgzLCJzdWIiOiI0NjA0Iiwic2NvcGVzIjpbXX0.CIna_GpbJ12ieEbktloXASY14QBQONoyYR1SeawiG5Evzc4t6BQtTlgzYCMxoDmhftCLU-QuM5fHgZ2qC89G5IJ7oUqB3od7MrXJaYOB9bailVF38qWlI-actpAGlhiVMnwiK33u_Ptem1cIlsadQlkBJlJEiOtXcLC8ZCI4yY-tD-HAA2Ht0x-1uIR3pSJ5IZeV551-H2jdkXI_n2cbqa88xoMQjUFSBzsWExuRXDOZaH3jeyd2x-6OgJdfCPzrJA_c-PAMKoQAOkHM3VjKVjqBFloyxDzMTOAGxl0GaeweDblBacEfsm_HhFlR6ZwD42FwEVaixwFkwahtnJagxcB_VmNbFYlQJqL269T4yCMb3LlF2yMocCuVdAaYpBATkkXB1SIOGw2UBAE8ok_S12aUYrBuJIqzts6IBx4m9RWTBMZKTfKqPgSGPsTfnSpfEpRAF2NpPHlBH8Jk-HSE_dRXUWlK0nnV-1Q8tr29WArfSPHvcsINfctO0f0UPK6ybrSAYhh2StZdUyP2wKr7Q2ttMY0w4rfywvCNaSHIYPbx3650AYWoBglDj1Va_7ADPHK_JCuY3iyPtci_5Tm6sqrlXbktQB4ECTK0zyVVdjXMltAUgDts3basqJrJTPZMS3Uh1cut8TGbGRYiLlcacQ5hIS4r2lGBKuhO6uVCoBg';
+
   const urlToken = searchParams.get('token');
-  const token = urlToken ?? storedToken;
 
-  // if (token) {
-  //   localStorage.setItem('token', token);
-  // }
+  // ✅ FIX 2: Uncomment and always save token to localStorage
+  // when it arrives from the URL (Flutter passes it here).
+  // Without this, every API call falls back to the hardcoded
+  // expired token and gets a 401.
+  if (urlToken) {
+    localStorage.setItem('token', urlToken);
+  }
 
-  // Always keep token param visible in URL (empty string shows as "token=")
+  // ✅ FIX 3: Remove the hardcoded expired token fallback entirely.
+  // If there's no token at all, the user needs to log in again.
+  const token = urlToken || localStorage.getItem('token') || '';
+
+  // Always keep token param visible in URL
   if (!searchParams.has('token')) {
     const newParams = new URLSearchParams(location.search);
     newParams.set('token', token);
