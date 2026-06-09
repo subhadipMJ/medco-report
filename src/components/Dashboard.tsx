@@ -496,6 +496,7 @@ const Dashboard = ({ token }: DashboardProps) => {
                   <code className="bg-amber-100 px-1 rounded">?token=</code> URL
                   parameter.
                 </p>
+                <p>{token}</p>
               </div>
             )}
 
