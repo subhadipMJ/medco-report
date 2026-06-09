@@ -483,6 +483,7 @@ const Dashboard = ({ token }: DashboardProps) => {
                 >
                   <RefreshCw size={14} /> Retry
                 </button>
+                <p>{token}</p>
               </div>
             )}
 
