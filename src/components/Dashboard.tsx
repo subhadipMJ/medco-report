@@ -1,221 +1,30 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
-  Activity,
-  Droplet,
   RefreshCw,
-  FlaskConical,
-  TestTube2,
   Loader2,
-  ChevronDown,
-  ChevronUp,
   Download,
   Search,
   CalendarDays,
-  User,
-  Building2,
-  Info,
+  Plus,
+  Droplet,
+  Heart,
+  Zap,
+  FlaskConical,
+  Beaker,
+  Thermometer,
+  Bone,
+  Activity,
+  Ruler,
+  SlidersHorizontal,
+  ChevronDown,
+  type LucideIcon,
 } from "lucide-react";
 import { useDebounce } from "../hooks/useDebounce";
-import { useSearchParams } from "react-router-dom";
 import { useNavigateWithToken } from "../hooks/useNavigateWithToken";
 import { useLabReports } from "../hooks/useLabReports";
-import type { LabReport, GroupedByTestType } from "../types/api";
-
-const testTypeIcon = (keyword: string) => {
-  switch (keyword) {
-    case "blood_test":
-      return <Droplet size={20} />;
-    case "urine_test":
-      return <FlaskConical size={20} />;
-    case "molecular_body_fluid":
-      return <TestTube2 size={20} />;
-    default:
-      return <Activity size={20} />;
-  }
-};
+import Header from "./Header";
 
 type TrendDirection = "up" | "down" | "flat";
-
-function formatDateDMY(dateStr: string): string {
-  const d = new Date(dateStr);
-  const day = String(d.getDate()).padStart(2, "0");
-  const month = String(d.getMonth() + 1).padStart(2, "0");
-  const year = d.getFullYear();
-  return `${day}-${month}-${year}`;
-}
-
-function GroupWiseView({
-  groupedReports,
-}: {
-  groupedReports: GroupedByTestType[];
-}) {
-  const [expanded, setExpanded] = useState<number | null>(null);
-  if (groupedReports.length === 0) {
-    return (
-      <div className="bg-slate-50 border-2 border-slate-200 rounded-3xl p-6 text-center">
-        <p className="text-sm font-bold text-slate-600">
-          No grouped reports found.
-        </p>
-      </div>
-    );
-  }
-  return (
-    <div className="space-y-4">
-      {groupedReports.map((gt) => (
-        <div
-          key={gt.testType.id}
-          className="rounded-[24px] border border-slate-200/80 bg-white/90 p-4 shadow-[0_8px_24px_rgba(15,23,42,0.06)]"
-        >
-          <div className="flex items-center gap-3 mb-3">
-            <div className="w-10 h-10 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-center text-slate-600">
-              {testTypeIcon(gt.testType.key_word)}
-            </div>
-            <div>
-              <p className="text-sm font-extrabold text-slate-900">
-                {gt.testType.name}
-              </p>
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                {gt.groups.length} group{gt.groups.length !== 1 ? "s" : ""}
-              </p>
-            </div>
-          </div>
-          <div className="space-y-2">
-            {gt.groups.map((g) => (
-              <div key={g.groupId}>
-                <button
-                  onClick={() =>
-                    setExpanded(expanded === g.groupId ? null : g.groupId)
-                  }
-                  className="w-full flex items-center justify-between rounded-xl border border-slate-200/70 bg-slate-50/60 px-3 py-2.5 text-left"
-                >
-                  <span className="text-sm font-semibold text-slate-800">
-                    {g.groupName}
-                  </span>
-                  {expanded === g.groupId ? (
-                    <ChevronUp size={16} className="text-slate-500" />
-                  ) : (
-                    <ChevronDown size={16} className="text-slate-500" />
-                  )}
-                </button>
-                {expanded === g.groupId && (
-                  <div className="mt-2 space-y-2 px-1">
-                    {g.parameters.map((p) => (
-                      <div
-                        key={p.id}
-                        className="flex items-center justify-between rounded-xl border border-slate-100 bg-white px-3 py-2"
-                      >
-                        <div>
-                          <p className="text-sm font-medium text-slate-800">
-                            {p.parameter.name}
-                          </p>
-                          <p className="text-[10px] text-slate-400">
-                            {formatDateDMY(p.date_of_test)}
-                          </p>
-                        </div>
-                        <p className="text-sm font-bold text-slate-900">
-                          {p.test_value}{" "}
-                          <span className="text-xs text-slate-500 font-normal">
-                            {p.parameter.unit}
-                          </span>
-                        </p>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function AnalysisView({ rawList }: { rawList: LabReport[] }) {
-  const totalTests = rawList.length;
-  const uniqueGroups = new Set(rawList.map((r) => r.group_id)).size;
-  const uniqueTypes = new Set(rawList.map((r) => r.test_type.id)).size;
-  const uniqueParams = new Set(rawList.map((r) => r.parameter_id)).size;
-  const latestDate =
-    rawList.length > 0
-      ? [...rawList].sort(
-          (a, b) =>
-            new Date(b.date_of_test).getTime() -
-            new Date(a.date_of_test).getTime(),
-        )[0].date_of_test
-      : null;
-
-  return (
-    <div className="space-y-4">
-      <div className="grid grid-cols-2 gap-3">
-        <div className="rounded-2xl border border-slate-200/80 bg-white/90 p-4 text-center shadow-[0_8px_24px_rgba(15,23,42,0.06)]">
-          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">
-            Total Tests
-          </p>
-          <p className="text-2xl font-black text-slate-900">{totalTests}</p>
-        </div>
-        <div className="rounded-2xl border border-slate-200/80 bg-white/90 p-4 text-center shadow-[0_8px_24px_rgba(15,23,42,0.06)]">
-          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">
-            Groups
-          </p>
-          <p className="text-2xl font-black text-slate-900">{uniqueGroups}</p>
-        </div>
-        <div className="rounded-2xl border border-slate-200/80 bg-white/90 p-4 text-center shadow-[0_8px_24px_rgba(15,23,42,0.06)]">
-          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">
-            Test Types
-          </p>
-          <p className="text-2xl font-black text-slate-900">{uniqueTypes}</p>
-        </div>
-        <div className="rounded-2xl border border-slate-200/80 bg-white/90 p-4 text-center shadow-[0_8px_24px_rgba(15,23,42,0.06)]">
-          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">
-            Parameters
-          </p>
-          <p className="text-2xl font-black text-slate-900">{uniqueParams}</p>
-        </div>
-      </div>
-      {latestDate && (
-        <div className="rounded-2xl border border-slate-200/80 bg-white/90 p-4 shadow-[0_8px_24px_rgba(15,23,42,0.06)]">
-          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">
-            Latest Test Date
-          </p>
-          <p className="text-lg font-bold text-slate-900">{formatDateDMY(latestDate)}</p>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function CompareView({ rawList }: { rawList: LabReport[] }) {
-  if (rawList.length === 0) {
-    return (
-      <div className="bg-slate-50 border-2 border-slate-200 rounded-3xl p-6 text-center">
-        <p className="text-sm font-bold text-slate-600">No data to compare.</p>
-      </div>
-    );
-  }
-  return (
-    <div className="rounded-2xl border border-slate-200/80 bg-white/90 p-5 shadow-[0_8px_24px_rgba(15,23,42,0.06)]">
-      <p className="text-sm font-semibold text-slate-500 mb-3">
-        Select parameters to compare across dates.
-      </p>
-      <div className="space-y-2">
-        {Array.from(new Set(rawList.map((r) => r.parameter.name)))
-          .slice(0, 8)
-          .map((name) => (
-            <div
-              key={name}
-              className="flex items-center justify-between rounded-xl border border-slate-100 bg-slate-50/60 px-3 py-2"
-            >
-              <span className="text-sm font-medium text-slate-800">{name}</span>
-              <span className="text-xs font-semibold text-blue-600 bg-blue-50 px-2 py-1 rounded-lg border border-blue-100">
-                Compare
-              </span>
-            </div>
-          ))}
-      </div>
-    </div>
-  );
-}
 
 interface DashboardProps {
   token: string;
@@ -223,22 +32,91 @@ interface DashboardProps {
 
 const Dashboard = ({ token }: DashboardProps) => {
   const navigate = useNavigateWithToken();
-  const [searchParams] = useSearchParams();
-  const activeTab =
-    (searchParams.get("tab") as
-      | "reports"
-      | "groupWise"
-      | "analysis"
-      | "compare") || "reports";
 
   const [datePreset, setDatePreset] = useState<
-    "all" | "today" | "yesterday" | "thisMonth" | "thisYear" | "6months" | "custom"
-  >("all");
+    | "all"
+    | "today"
+    | "yesterday"
+    | "thisMonth"
+    | "thisYear"
+    | "6months"
+    | "custom"
+  >("thisYear");
   const [customStart, setCustomStart] = useState("");
   const [customEnd, setCustomEnd] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const debouncedSearchQuery = useDebounce(searchQuery, 500);
+  const [statusFilter, setStatusFilter] = useState<
+    "all" | "critical" | "normal"
+  >("all");
   const [page, setPage] = useState(1);
+
+  const bp = "120/80";
+  const pulse = 72;
+  const waist = 34;
+
+  // Read filters from URL on mount
+  useEffect(() => {
+    const sp = new URLSearchParams(window.location.search);
+    const dp = sp.get("date") as typeof datePreset | null;
+    const validPresets = [
+      "all",
+      "today",
+      "yesterday",
+      "thisMonth",
+      "thisYear",
+      "6months",
+      "custom",
+    ] as const;
+    if (dp && validPresets.includes(dp)) setDatePreset(dp);
+    const s = sp.get("start");
+    if (s) setCustomStart(s);
+    const e = sp.get("end");
+    if (e) setCustomEnd(e);
+    const q = sp.get("search");
+    if (q) setSearchQuery(q);
+    const st = sp.get("status") as typeof statusFilter | null;
+    const validStatuses = ["all", "critical", "normal"] as const;
+    if (st && validStatuses.includes(st)) setStatusFilter(st);
+    const p = sp.get("page");
+    if (p) {
+      const pn = parseInt(p, 10);
+      if (!isNaN(pn) && pn > 0) setPage(pn);
+    }
+  }, []);
+
+  const isFirstRender = useRef(true);
+
+  // Write filters to URL when they change
+  useEffect(() => {
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
+    }
+    const sp = new URLSearchParams(window.location.search);
+    if (datePreset && datePreset !== "all") sp.set("date", datePreset);
+    else sp.delete("date");
+    if (customStart) sp.set("start", customStart);
+    else sp.delete("start");
+    if (customEnd) sp.set("end", customEnd);
+    else sp.delete("end");
+    if (debouncedSearchQuery.trim())
+      sp.set("search", debouncedSearchQuery.trim());
+    else sp.delete("search");
+    if (statusFilter && statusFilter !== "all") sp.set("status", statusFilter);
+    else sp.delete("status");
+    if (page > 1) sp.set("page", String(page));
+    else sp.delete("page");
+    const newUrl = `${window.location.pathname}${sp.toString() ? `?${sp.toString()}` : ""}`;
+    window.history.replaceState({}, "", newUrl);
+  }, [
+    datePreset,
+    customStart,
+    customEnd,
+    debouncedSearchQuery,
+    statusFilter,
+    page,
+  ]);
 
   const dateFilters = useMemo(() => {
     if (datePreset === "today") {
@@ -280,23 +158,17 @@ const Dashboard = ({ token }: DashboardProps) => {
     return {};
   }, [datePreset, customStart, customEnd]);
 
-  const {
-    data: groupedReports,
-    rawList,
-    pagination,
-    loading,
-    isLoadingMore,
-    error,
-    refetch,
-  } = useLabReports(token || null, {
-    search: debouncedSearchQuery.trim() || undefined,
-    ...dateFilters,
-    page,
-  });
+  const { rawList, pagination, loading, isLoadingMore, error, refetch } =
+    useLabReports(token || null, {
+      search: debouncedSearchQuery.trim() || undefined,
+      ...dateFilters,
+      status: statusFilter === "all" ? undefined : statusFilter,
+      page,
+    });
 
   useEffect(() => {
     setPage(1);
-  }, [debouncedSearchQuery, dateFilters]);
+  }, [debouncedSearchQuery, dateFilters, statusFilter]);
 
   const trendCards = useMemo(() => {
     return (Array.isArray(rawList) ? rawList : [])
@@ -308,11 +180,11 @@ const Dashboard = ({ token }: DashboardProps) => {
           ? Number.parseFloat(report.parameter.end_range)
           : null;
         const valueColor =
-          report.status === 'high'
-            ? '#E11D48'
-            : report.status === 'low'
-              ? '#2563EB'
-              : '#228B22';
+          report.status === "high"
+            ? "#E11D48"
+            : report.status === "low"
+              ? "#2563EB"
+              : "#228B22";
 
         return {
           key: `${report.id}`,
@@ -321,6 +193,7 @@ const Dashboard = ({ token }: DashboardProps) => {
           keyword: report.test_type.key_word,
           name: report.parameter.name,
           unit: report.parameter.unit || "-",
+          testDate: report.date_of_test || "dd/mm/yyyy",
           previousValue: "—",
           currentValue: report.test_value,
           delta: null,
@@ -329,6 +202,7 @@ const Dashboard = ({ token }: DashboardProps) => {
           minRange,
           maxRange,
           valueColor,
+          status: report.status,
           testReport: report.test_report,
           labName: report.lab_name,
           doctorName: report.doctor_name,
@@ -340,50 +214,153 @@ const Dashboard = ({ token }: DashboardProps) => {
       );
   }, [rawList]);
 
+  const getTestMeta = (name: string) => {
+    const n = name.toLowerCase();
+    if (
+      n.includes("hemoglobin") ||
+      n.includes("blood") ||
+      n.includes("rbc") ||
+      n.includes("wbc") ||
+      n.includes("platelet") ||
+      n.includes("hct") ||
+      n.includes("mcv")
+    )
+      return {
+        Icon: Droplet as LucideIcon,
+        iconBg: "bg-rose-50 text-rose-500",
+        borderColor: "border-l-4 border-l-rose-300",
+      };
+    if (
+      n.includes("cholesterol") ||
+      n.includes("ldl") ||
+      n.includes("hdl") ||
+      n.includes("triglyceride") ||
+      n.includes("lipid")
+    )
+      return {
+        Icon: Heart as LucideIcon,
+        iconBg: "bg-amber-50 text-amber-500",
+        borderColor: "border-l-4 border-l-amber-300",
+      };
+    if (
+      n.includes("glucose") ||
+      n.includes("sugar") ||
+      n.includes("hba1c") ||
+      n.includes("diabetes")
+    )
+      return {
+        Icon: Zap as LucideIcon,
+        iconBg: "bg-blue-50 text-blue-500",
+        borderColor: "border-l-4 border-l-blue-300",
+      };
+    if (
+      n.includes("liver") ||
+      n.includes("ast") ||
+      n.includes("alt") ||
+      n.includes("bilirubin") ||
+      n.includes("alkaline") ||
+      n.includes("sgpt") ||
+      n.includes("sgot")
+    )
+      return {
+        Icon: FlaskConical as LucideIcon,
+        iconBg: "bg-emerald-50 text-emerald-500",
+        borderColor: "border-l-4 border-l-emerald-300",
+      };
+    if (
+      n.includes("kidney") ||
+      n.includes("creatinine") ||
+      n.includes("bun") ||
+      n.includes("urea") ||
+      n.includes("uric")
+    )
+      return {
+        Icon: Beaker as LucideIcon,
+        iconBg: "bg-violet-50 text-violet-500",
+        borderColor: "border-l-4 border-l-violet-300",
+      };
+    if (
+      n.includes("thyroid") ||
+      n.includes("tsh") ||
+      n.includes("t3") ||
+      n.includes("t4")
+    )
+      return {
+        Icon: Thermometer as LucideIcon,
+        iconBg: "bg-cyan-50 text-cyan-500",
+        borderColor: "border-l-4 border-l-cyan-300",
+      };
+    if (
+      n.includes("calcium") ||
+      n.includes("vitamin") ||
+      n.includes("vit d") ||
+      n.includes("b12") ||
+      n.includes("iron") ||
+      n.includes("ferritin")
+    )
+      return {
+        Icon: Bone as LucideIcon,
+        iconBg: "bg-orange-50 text-orange-500",
+        borderColor: "border-l-4 border-l-orange-300",
+      };
+    return {
+      Icon: Activity as LucideIcon,
+      iconBg: "bg-slate-50 text-slate-500",
+      borderColor: "border-l-4 border-l-slate-200",
+    };
+  };
+
   return (
     <div className="min-h-screen bg-slate-50 font-sans">
       <div className="max-w-4xl mx-auto bg-white min-h-screen pb-24">
-        {/* Patient Header - Light Premium Mode */}
-        <div className="px-6 pt-8 pb-6 relative z-10 bg-white">
-          <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center gap-4">
-              {/* <div className="relative group cursor-pointer">
-                <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 p-[2px] shadow-lg shadow-blue-500/30">
-                  <div className="w-full h-full bg-white rounded-[14px] flex items-center justify-center overflow-hidden">
-                    <Heart size={22} className="text-blue-600" />
-                  </div>
-                </div>
-                <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-emerald-500 rounded-full border-[3px] border-white shadow-sm"></div>
-              </div> */}
-              <div>
-                <p className="text-xs text-slate-500 font-semibold tracking-wider uppercase mb-1">
-                  Health Dashboard
-                </p>
-                <p className="text-2xl font-black text-slate-900 m-0 tracking-tight leading-none">
-                  My Reports
-                </p>
-              </div>
+        <Header
+          token={token}
+          title="My Reports"
+          onRefresh={refetch}
+          isRefreshing={loading}
+        />
+
+        {/* Vitals row */}
+        <div className="px-6 my-3 grid grid-cols-3 gap-3">
+          <div className="bg-white rounded-2xl border border-slate-100 p-3 flex items-center gap-2.5 shadow-sm">
+            <div className="w-8 h-8 rounded-xl bg-amber-50 flex items-center justify-center shrink-0">
+              <Heart size={14} className="text-red-500" />
             </div>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={refetch}
-                className="w-11 h-11 bg-slate-50 border border-slate-100 rounded-2xl flex items-center justify-center relative hover:bg-slate-100 transition-colors shadow-sm"
-                title="Refresh"
-              >
-                <RefreshCw
-                  size={18}
-                  className={`text-slate-600 ${loading ? "animate-spin" : ""}`}
-                />
-              </button>
-              {/* <button onClick={openSidebar} className="w-11 h-11 bg-slate-50 border border-slate-100 rounded-2xl flex items-center justify-center relative hover:bg-slate-100 transition-colors shadow-sm" title="Menu">
-                <Menu size={18} className="text-slate-600" />
-              </button> */}
+            <div>
+              <p className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider">
+                BP
+              </p>
+              <p className="text-sm font-bold text-slate-800">{bp}</p>
             </div>
           </div>
+          <div className="bg-white rounded-2xl border border-slate-100 p-3 flex items-center gap-2.5 shadow-sm">
+            <div className="w-8 h-8 rounded-xl bg-orange-50 flex items-center justify-center shrink-0">
+              <Activity size={14} className="text-orange-500" />
+            </div>
+            <div>
+              <p className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider">
+                Pulse
+              </p>
+              <p className="text-sm font-bold text-slate-800">{pulse}</p>
+            </div>
+          </div>
+          <div className="bg-white rounded-2xl border border-slate-100 p-3 flex items-center gap-2.5 shadow-sm">
+            <div className="w-8 h-8 rounded-xl bg-violet-50 flex items-center justify-center shrink-0">
+              <Ruler size={14} className="text-violet-500" />
+            </div>
+            <div>
+              <p className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider">
+                Waist
+              </p>
+              <p className="text-sm font-bold text-slate-800">{waist}</p>
+            </div>
+          </div>
+        </div>
 
-          {/* Search & Date Filter */}
-          <div className="space-y-3 mb-6">
-            <div className="relative">
+        {/* Search & Date Filter */}
+        <div className="px-6 space-y-3 mb-6">
+          <div className="flex items-center gap-2">
+            <div className="relative flex-1">
               <Search
                 size={16}
                 className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
@@ -392,57 +369,104 @@ const Dashboard = ({ token }: DashboardProps) => {
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search test, lab name or doctor name..."
+                placeholder="Search reports"
                 className="w-full h-10 rounded-xl border border-slate-200 bg-slate-50 pl-9 pr-3 text-sm font-medium text-slate-800 placeholder:text-slate-400 outline-none focus:border-blue-400 focus:bg-white transition-colors"
               />
             </div>
-            <div className="flex items-center gap-2">
-              <div className="flex w-full gap-0.5 rounded-xl border border-slate-200 bg-white p-0.5 shadow-sm overflow-x-auto">
-                {(
-                  ["all", "today", "yesterday", "thisMonth", "thisYear", "6months", "custom"] as const
-                ).map((preset) => (
-                  <button
-                    key={preset}
-                    onClick={() => setDatePreset(preset)}
-                    className={`flex-auto whitespace-nowrap rounded-lg px-0.5 py-1.5 text-[9px] font-semibold transition-all ${
-                      datePreset === preset
-                        ? "bg-slate-900 text-white"
-                        : "text-slate-500 hover:text-slate-700 hover:bg-slate-50"
-                    }`}
-                  >
-                    {preset === "all" && "All"}
-                    {preset === "today" && "Today"}
-                    {preset === "yesterday" && "Yesterday"}
-                    {preset === "thisMonth" && "This Month"}
-                    {preset === "thisYear" && "This Year"}
-                    {preset === "6months" && "6 Months"}
-                    {preset === "custom" && "Custom"}
-                  </button>
-                ))}
-              </div>
+            <div className="relative shrink-0">
+              <SlidersHorizontal
+                size={14}
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+              />
+              <select
+                value={datePreset}
+                onChange={(e) =>
+                  setDatePreset(
+                    e.target.value as
+                      | "all"
+                      | "today"
+                      | "yesterday"
+                      | "thisMonth"
+                      | "thisYear"
+                      | "6months"
+                      | "custom",
+                  )
+                }
+                className="h-10 appearance-none rounded-xl border border-slate-200 bg-slate-50 pl-9 pr-8 text-xs font-semibold text-slate-700 outline-none focus:border-blue-400 focus:bg-white transition-colors cursor-pointer"
+              >
+                <option value="all">All Time</option>
+                <option value="today">Today</option>
+                <option value="yesterday">Yesterday</option>
+                <option value="thisMonth">This Month</option>
+                <option value="thisYear">This Year</option>
+                <option value="6months">6 Months</option>
+                <option value="custom">Custom</option>
+              </select>
+              <ChevronDown
+                size={14}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"
+              />
             </div>
-            {datePreset === "custom" && (
-              <div className="flex items-center gap-2">
-                <CalendarDays size={14} className="text-slate-400" />
+          </div>
+          {datePreset === "custom" && (
+            <div className="flex items-center gap-2">
+              <CalendarDays size={14} className="text-slate-400 shrink-0" />
+              <div className="relative flex-1">
                 <input
                   type="date"
                   value={customStart}
                   onChange={(e) => setCustomStart(e.target.value)}
-                  className="h-9 flex-1 rounded-xl border border-slate-300 bg-white px-2 text-xs font-medium text-slate-800 outline-none focus:border-slate-500"
+                  className="h-9 w-full rounded-xl border border-slate-300 bg-white px-2 text-xs font-medium text-transparent outline-none focus:border-slate-500"
                 />
-                <span className="text-xs text-slate-400">to</span>
+                <span className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-xs font-medium text-slate-800">
+                  {customStart
+                    ? `${customStart.slice(8, 10)}/${customStart.slice(5, 7)}/${customStart.slice(0, 4)}`
+                    : "DD/MM/YYYY"}
+                </span>
+              </div>
+              <span className="text-xs text-slate-400 shrink-0">to</span>
+              <div className="relative flex-1">
                 <input
                   type="date"
                   value={customEnd}
                   onChange={(e) => setCustomEnd(e.target.value)}
-                  className="h-9 flex-1 rounded-xl border border-slate-300 bg-white px-2 text-xs font-medium text-slate-800 outline-none focus:border-slate-500"
+                  className="h-9 w-full rounded-xl border border-slate-300 bg-white px-2 text-xs font-medium text-transparent outline-none focus:border-slate-500"
                 />
+                <span className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-xs font-medium text-slate-800">
+                  {customEnd
+                    ? `${customEnd.slice(8, 10)}/${customEnd.slice(5, 7)}/${customEnd.slice(0, 4)}`
+                    : "DD/MM/YYYY"}
+                </span>
               </div>
-            )}
+            </div>
+          )}
+          <div className="flex items-center gap-2">
+            <div className="flex w-full gap-0.5 rounded-xl border border-slate-200 bg-white p-0.5 shadow-sm overflow-x-auto">
+              {(["all", "critical", "normal"] as const).map((status) => (
+                <button
+                  key={status}
+                  onClick={() => setStatusFilter(status)}
+                  className={`flex-auto whitespace-nowrap rounded-lg px-0.5 py-1.5 text-[9px] font-semibold transition-all ${
+                    statusFilter === status
+                      ? status === "critical"
+                        ? "bg-rose-600 text-white"
+                        : status === "normal"
+                          ? "bg-emerald-600 text-white"
+                          : "bg-slate-900 text-white"
+                      : "text-slate-500 hover:text-slate-700 hover:bg-slate-50"
+                  }`}
+                >
+                  {status === "all" && "All Status"}
+                  {status === "critical" && "Critical"}
+                  {status === "normal" && "Normal"}
+                </button>
+              ))}
+            </div>
           </div>
+        </div>
 
-          {/* Health Score Card - Neumorphic Light */}
-          {/* <div className="group bg-white border border-slate-100 hover:border-blue-100 rounded-3xl p-6 shadow-[0_8px_30px_rgba(0,0,0,0.04)] hover:shadow-[0_20px_40px_rgba(59,130,246,0.08)] hover:-translate-y-1 transition-all duration-500 mb-6 relative overflow-hidden">
+        {/* Health Score Card - Neumorphic Light */}
+        {/* <div className="group bg-white border border-slate-100 hover:border-blue-100 rounded-3xl p-6 shadow-[0_8px_30px_rgba(0,0,0,0.04)] hover:shadow-[0_20px_40px_rgba(59,130,246,0.08)] hover:-translate-y-1 transition-all duration-500 mb-6 relative overflow-hidden">
             <div className="absolute top-0 right-0 w-40 h-40 bg-gradient-to-br from-blue-500/10 to-purple-500/10 blur-3xl rounded-full pointer-events-none group-hover:scale-125 transition-transform duration-700"></div>
             <div className="absolute -bottom-10 -left-10 w-32 h-32 bg-gradient-to-tr from-emerald-500/10 to-teal-500/10 blur-2xl rounded-full pointer-events-none group-hover:scale-125 transition-transform duration-700"></div>
             
@@ -461,7 +485,6 @@ const Dashboard = ({ token }: DashboardProps) => {
               </div>
             </div>
           </div> */}
-        </div>
 
         <div className="px-6 pb-24 relative z-10">
           <div className="animate-fade-in space-y-6">
@@ -501,139 +524,234 @@ const Dashboard = ({ token }: DashboardProps) => {
               </div>
             )}
 
-            {!loading &&
-              !error &&
-              activeTab === "reports" &&
-              trendCards.length > 0 && (
-                <div className="space-y-3">
-                  {trendCards.map((card) => (
+            {!loading && !error && trendCards.length > 0 && (
+              <div className="space-y-3">
+                {trendCards.map((card) => {
+                  const statusPill =
+                    card.status === "normal"
+                      ? "bg-emerald-50 text-emerald-700"
+                      : card.status === "high"
+                        ? "bg-rose-50 text-rose-700"
+                        : card.status === "low"
+                          ? "bg-blue-50 text-blue-700"
+                          : "bg-slate-50 text-slate-600";
+                  const statusLabel =
+                    card.status === "normal"
+                      ? "Normal"
+                      : card.status === "high"
+                        ? "High"
+                        : card.status === "low"
+                          ? "Low"
+                          : "Unknown";
+
+                  let referenceText = "Unavailable";
+                  if (card.minRange !== null && card.maxRange !== null) {
+                    referenceText = `${card.minRange} - ${card.maxRange} ${card.unit}`;
+                  } else if (card.maxRange !== null) {
+                    referenceText = `< ${card.maxRange} ${card.unit}`;
+                  } else if (card.minRange !== null) {
+                    referenceText = `> ${card.minRange} ${card.unit}`;
+                  }
+
+                  const val = Number.parseFloat(card.currentValue);
+                  const isNumeric = !Number.isNaN(val);
+                  let barMin = 0;
+                  let barMax = 0;
+                  let dotPercent = 0;
+                  if (isNumeric) {
+                    if (card.minRange !== null && card.maxRange !== null) {
+                      const range = card.maxRange - card.minRange;
+                      barMin = Math.max(0, card.minRange - range * 0.3);
+                      barMax = card.maxRange + range * 0.3;
+                    } else if (card.maxRange !== null) {
+                      barMin = Math.max(0, card.maxRange * 0.4);
+                      barMax = card.maxRange * 2;
+                    } else if (card.minRange !== null) {
+                      barMin = Math.max(0, card.minRange * 0.5);
+                      barMax = card.minRange * 1.5;
+                    } else {
+                      barMin = 0;
+                      barMax = val * 1.5 || 100;
+                    }
+                    if (val < barMin) barMin = val - Math.abs(val) * 0.2 - 1;
+                    if (val > barMax) barMax = val + Math.abs(val) * 0.2 + 1;
+                    dotPercent = ((val - barMin) / (barMax - barMin)) * 100;
+                    dotPercent = Math.max(0, Math.min(100, dotPercent));
+                  }
+
+                  const fmtBar = (n: number) => {
+                    const s = n.toFixed(1);
+                    return s.endsWith(".0") ? s.slice(0, -2) : s;
+                  };
+
+                  const { Icon, iconBg, borderColor } = getTestMeta(card.name);
+                  return (
                     <div
                       key={card.key}
-                      className="group cursor-pointer rounded-2xl border border-slate-200/80 bg-white p-5 shadow-[0_8px_24px_rgba(15,23,42,0.06)] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_12px_32px_rgba(15,23,42,0.1)]"
+                      className={`group cursor-pointer rounded-3xl border border-slate-100 ${borderColor} bg-white p-5 shadow-[0_2px_12px_rgba(15,23,42,0.04)] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_8px_24px_rgba(15,23,42,0.08)]`}
                       onClick={() => navigate(`/report/${card.parameterId}`)}
                     >
-                      <div className="mb-2 flex items-start justify-between gap-4">
-                        <div>
-                          <p className="max-w-[180px] truncate text-lg font-semibold leading-none text-slate-900">
-                            {card.name}
-                          </p>
-                          <p className="mt-1 flex items-center gap-1 text-xs text-slate-500">
-                            {card.minRange !== null && card.maxRange !== null
-                              ? `Normal: ${card.minRange}-${card.maxRange} ${card.unit}`
-                              : `Normal range unavailable`}
-                            <Info size={12} className="text-blue-800" />
-                          </p>
-                          {card.doctorName && (
-                            <p className="mt-1 flex items-center gap-1.5 text-xs text-slate-500">
-                              <User size={12} className="text-emerald-500" />
-                              <span>{card.doctorName}</span>
+                      {/* Header */}
+                      <div className="flex items-start justify-between">
+                        <div className="flex items-center gap-3">
+                          <div
+                            className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${iconBg}`}
+                          >
+                            <Icon size={18} />
+                          </div>
+                          <div>
+                            <p className="text-sm font-semibold text-slate-800">
+                              {card.name}
                             </p>
-                          )}
-                          {card.labName && (
-                            <p className="mt-0.5 flex items-center gap-1.5 text-xs text-slate-500">
-                              <Building2 size={12} className="text-blue-500" />
-                              <span>{card.labName}</span>
+                            <p className="text-xs text-slate-400 mt-0.5">
+                              {card.testDate}
                             </p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span
+                            className={`inline-block px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wide ${statusPill}`}
+                          >
+                            {statusLabel}
+                          </span>
+                          {card.testReport && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                const url = card.testReport;
+                                if (!url) return;
+                                fetch(url, { method: "GET", mode: "cors" })
+                                  .then((res) => {
+                                    if (!res.ok)
+                                      throw new Error(
+                                        `Download failed: ${res.status}`,
+                                      );
+                                    return res.blob();
+                                  })
+                                  .then((blob) => {
+                                    const blobUrl =
+                                      window.URL.createObjectURL(blob);
+                                    const a = document.createElement("a");
+                                    a.href = blobUrl;
+                                    const filename =
+                                      url.split("/").pop() || "report.pdf";
+                                    a.download = filename;
+                                    document.body.appendChild(a);
+                                    a.click();
+                                    a.remove();
+                                    window.URL.revokeObjectURL(blobUrl);
+                                  })
+                                  .catch(() => {
+                                    window.open(
+                                      url,
+                                      "_blank",
+                                      "noopener,noreferrer",
+                                    );
+                                  });
+                              }}
+                              className="p-1.5 rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors"
+                              title="Download report"
+                            >
+                              <Download size={14} />
+                            </button>
                           )}
                         </div>
-                        <div className="flex items-end gap-1.5 pt-1">
-                          <span
-                            className="text-3xl font-semibold leading-none"
-                            style={{ color: card.valueColor }}
-                          >
+                      </div>
+
+                      {/* Value + Reference */}
+                      <div className="flex items-start justify-between mt-4">
+                        <div className="flex items-baseline gap-1">
+                          <span className="text-4xl font-bold text-slate-900 tracking-tight">
                             {card.currentValue}
                           </span>
-                          <span className="pb-1 text-sm text-slate-500">
+                          <span className="text-sm text-slate-400 font-medium">
                             {card.unit}
                           </span>
                         </div>
+                        <div className="text-right mt-1">
+                          <p className="text-[10px] text-slate-400 uppercase tracking-wide font-semibold">
+                            Reference
+                          </p>
+                          <p className="text-xs font-medium text-slate-600 mt-0.5">
+                            {referenceText}
+                          </p>
+                        </div>
                       </div>
-                      {card.testReport && (
-                        <div className="flex justify-end">
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              const url = card.testReport;
-                              if (!url) return;
-                              fetch(url, { method: "GET", mode: "cors" })
-                                .then((res) => {
-                                  if (!res.ok)
-                                    throw new Error(
-                                      `Download failed: ${res.status}`,
-                                    );
-                                  return res.blob();
-                                })
-                                .then((blob) => {
-                                  const blobUrl =
-                                    window.URL.createObjectURL(blob);
-                                  const a = document.createElement("a");
-                                  a.href = blobUrl;
-                                  const filename =
-                                    url.split("/").pop() || "report.pdf";
-                                  a.download = filename;
-                                  document.body.appendChild(a);
-                                  a.click();
-                                  a.remove();
-                                  window.URL.revokeObjectURL(blobUrl);
-                                })
-                                .catch(() => {
-                                  window.open(
-                                    url,
-                                    "_blank",
-                                    "noopener,noreferrer",
-                                  );
-                                });
-                            }}
-                            className="mt-2 inline-flex items-center gap-1.5 rounded-xl border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-700 hover:bg-blue-100 transition-colors"
-                          >
-                            <Download size={14} /> Download
-                          </button>
+
+                      {/* Bar */}
+                      {isNumeric && (
+                        <div className="mt-5">
+                          <div className="relative h-1.5 rounded-full bg-slate-100">
+                            <div
+                              className="absolute top-1/2 w-3 h-3 rounded-full border-2 border-white shadow"
+                              style={{
+                                left: `${dotPercent}%`,
+                                backgroundColor: card.valueColor,
+                                transform: "translate(-50%, -50%)",
+                              }}
+                            />
+                          </div>
+                          <div className="flex justify-between mt-2">
+                            <span className="text-[10px] text-slate-400 font-medium">
+                              {fmtBar(barMin)}
+                            </span>
+                            <span className="text-[10px] text-slate-400 font-medium">
+                              healthy range
+                            </span>
+                            <span className="text-[10px] text-slate-400 font-medium">
+                              {fmtBar(barMax)}
+                            </span>
+                          </div>
                         </div>
                       )}
-                    </div>
-                  ))}
-                  {pagination && pagination.currentPage < pagination.lastPage && (
-                    <div className="mt-4 flex flex-col items-center gap-2">
-                      <button
-                        onClick={() => setPage((p) => p + 1)}
-                        disabled={isLoadingMore}
-                        className="inline-flex items-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-5 py-2.5 text-sm font-semibold text-blue-700 hover:bg-blue-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                      >
-                        {isLoadingMore ? (
-                          <Loader2 size={16} className="animate-spin" />
-                        ) : null}
-                        Load More
-                      </button>
-                      <p className="text-[11px] font-medium text-slate-400">
-                        Showing {rawList.length} of {pagination.total}
-                      </p>
-                    </div>
-                  )}
-                </div>
-              )}
 
-            {!loading &&
-              !error &&
-              activeTab === "reports" &&
-              trendCards.length === 0 && (
-                <div className="bg-slate-50 border-2 border-slate-200 rounded-3xl p-6 text-center">
-                  <p className="text-sm font-bold text-slate-600">
-                    No report items found.
-                  </p>
-                </div>
-              )}
+                      {/* lab name & doctor name */}
+                      <div className="mt-4 flex gap-2 text-xs text-slate-500">
+                        <span className="font-medium">{card.doctorName}</span>
+                        <span>•</span>
+                        <span>{card.labName}</span>
+                      </div>
+                    </div>
+                  );
+                })}
+                {pagination && pagination.currentPage < pagination.lastPage && (
+                  <div className="mt-4 flex flex-col items-center gap-2">
+                    <button
+                      onClick={() => setPage((p) => p + 1)}
+                      disabled={isLoadingMore}
+                      className="inline-flex items-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-5 py-2.5 text-sm font-semibold text-blue-700 hover:bg-blue-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    >
+                      {isLoadingMore ? (
+                        <Loader2 size={16} className="animate-spin" />
+                      ) : null}
+                      Load More
+                    </button>
+                    <p className="text-[11px] font-medium text-slate-400">
+                      Showing {rawList.length} of {pagination.total}
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
 
-            {!loading && !error && activeTab === "groupWise" && (
-              <GroupWiseView groupedReports={groupedReports} />
-            )}
-            {!loading && !error && activeTab === "analysis" && (
-              <AnalysisView rawList={rawList} />
-            )}
-            {!loading && !error && activeTab === "compare" && (
-              <CompareView rawList={rawList} />
+            {!loading && !error && trendCards.length === 0 && (
+              <div className="bg-slate-50 border-2 border-slate-200 rounded-3xl p-6 text-center">
+                <p className="text-sm font-bold text-slate-600">
+                  No report items found.
+                </p>
+              </div>
             )}
           </div>
         </div>
+
+        {/* Floating Add Report Button */}
+        <button
+          onClick={() => navigate(`/add-report?token=${token}`)}
+          className="fixed bottom-40 right-6 w-14 h-14 rounded-full bg-slate-900 text-white shadow-lg flex items-center justify-center hover:bg-slate-800 active:scale-95 transition-all z-50"
+          title="Add Report"
+        >
+          <Plus size={24} />
+        </button>
       </div>
     </div>
   );

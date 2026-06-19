@@ -43,6 +43,7 @@ interface UseLabReportsFilters {
   search?: string;
   start_date?: string;
   end_date?: string;
+  status?: string;
   page?: number;
 }
 
@@ -75,7 +76,7 @@ export const useLabReports = (
   const [error, setError] = useState<string | null>(null);
   const [trigger, setTrigger] = useState(0);
 
-  const prevFiltersRef = useRef({ search: '', start_date: '', end_date: '', page: 1 });
+  const prevFiltersRef = useRef({ search: '', start_date: '', end_date: '', status: '', page: 1 });
   const accumulatedRef = useRef<LabReport[]>([]);
 
   useEffect(() => {
@@ -85,13 +86,15 @@ export const useLabReports = (
       search: filters.search || '',
       start_date: filters.start_date || '',
       end_date: filters.end_date || '',
+      status: filters.status || '',
       page: filters.page || 1,
     };
 
     const filtersChanged =
       currentFilters.search !== prevFiltersRef.current.search ||
       currentFilters.start_date !== prevFiltersRef.current.start_date ||
-      currentFilters.end_date !== prevFiltersRef.current.end_date;
+      currentFilters.end_date !== prevFiltersRef.current.end_date ||
+      currentFilters.status !== prevFiltersRef.current.status;
 
     const isFirstPage = filtersChanged || currentFilters.page === 1;
 
@@ -102,7 +105,7 @@ export const useLabReports = (
     }
     setError(null);
 
-    fetchLabReports(token, filters.search, filters.start_date, filters.end_date, filters.page)
+    fetchLabReports(token, filters.search, filters.start_date, filters.end_date, filters.status, filters.page)
       .then(res => {
         const list = Array.isArray(res.data.data) ? res.data.data : [];
 
@@ -133,7 +136,7 @@ export const useLabReports = (
           setIsLoadingMore(false);
         }
       });
-  }, [token, trigger, filters.search, filters.start_date, filters.end_date, filters.page]);
+  }, [token, trigger, filters.search, filters.start_date, filters.end_date, filters.status, filters.page]);
 
   const refetch = () => setTrigger(t => t + 1);
 

@@ -162,3 +162,141 @@ export interface GroupedByTestType {
   testType: TestType;
   groups: GroupedReport[];
 }
+
+export interface CompareReportParameter {
+  parameter_id: string;
+  parameter_name: string;
+  parameter_unit: string;
+  start_range?: string;
+  end_range?: string;
+}
+
+export interface CompareReportsResponse {
+  success: number;
+  error: number;
+  message?: string;
+  data: CompareReportParameter[];
+}
+
+export interface CompareReportDetails {
+  parameter_id: number | null;
+  parameter_name: string;
+  unit: string;
+  start_range: string;
+  end_range: string;
+  records: [
+    {
+      id: number | null;
+      date_of_test: string;
+      test_value: string;
+      status: string;
+      lab_name: string;
+      doctor_name: string;
+    },
+  ];
+}
+
+export interface CompareReportDetailsResponse {
+  success: number;
+  error: number;
+  message?: string;
+  data: CompareReportDetails[];
+}
+
+export interface Prescription {
+  id: number;
+  user_id: number;
+  doctor_name: string;
+  prescription: string;
+  created_at: string;
+  updated_at: string;
+  prescription_url: string;
+}
+
+export interface PrescriptionResponse {
+  success: number;
+  error: number;
+  message: string;
+  prescription: Prescription[];
+}
+
+export interface UserProfile {
+  id: number;
+  name: string;
+  email: string;
+  phone: string;
+  avatar: string | null;
+  age: number | null;
+  height: string | null;
+  weight: string | null;
+  gender: string | null;
+}
+
+export interface UserProfileResponse {
+  success: number;
+  error: number;
+  message?: string;
+  data: UserProfile;
+}
+
+export interface Doctor {
+  id: number;
+  doctor_name: string;
+  updated_at: string;
+  created_at: string;
+}
+
+export interface DoctorResponse {
+  success: number;
+  error: number;
+  message?: string;
+  data: Doctor[];
+}
+
+export interface AddDoctorRequest {
+  doctor_name: string;
+}
+
+export interface AddDoctorResponse {
+  success: number;
+  error: number;
+  message: string;
+  data: {
+    user_id: number;
+    doctor_name: string;
+    updated_at: string;
+    created_at: string;
+    id: number;
+  };
+}
+
+export interface Lab {
+  id: number;
+  lab_name: string;
+  updated_at: string;
+  created_at: string;
+}
+
+export interface LabResponse {
+  success: number;
+  error: number;
+  message?: string;
+  data: Lab[];
+}
+
+export interface AddLabRequest {
+  lab_name: string;
+}
+
+export interface AddLabResponse {
+  success: number;
+  error: number;
+  message: string;
+  data: {
+    user_id: number;
+    lab_name: string;
+    updated_at: string;
+    created_at: string;
+    id: number;
+  };
+}

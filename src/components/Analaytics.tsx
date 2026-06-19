@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import { Activity, Droplet, Search, FileText, ChevronDown, CheckCircle2, TrendingUp, ArrowUpRight, ArrowDownRight, ArrowRight, History, RefreshCw, FlaskConical, TestTube2, Loader2 } from 'lucide-react';
 import { useNavigateWithToken } from '../hooks/useNavigateWithToken';
 import { useLabReports } from '../hooks/useLabReports';
+import Header from './Header';
 
 const testTypeIcon = (keyword: string) => {
   switch (keyword) {
@@ -64,32 +65,12 @@ const Analaytics = ({ token }: DashboardProps) => {
     <div className="min-h-screen bg-slate-50 font-sans">
       <div className="max-w-4xl mx-auto bg-white min-h-screen pb-24">
         
-        {/* Patient Header - Light Premium Mode */}
-        <div className="px-6 pt-8 pb-6 relative z-10 bg-white">
-          <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center gap-4">
-              {/* <div className="relative group cursor-pointer">
-                <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 p-[2px] shadow-lg shadow-blue-500/30">
-                  <div className="w-full h-full bg-white rounded-[14px] flex items-center justify-center overflow-hidden">
-                    <Heart size={22} className="text-blue-600" />
-                  </div>
-                </div>
-                <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-emerald-500 rounded-full border-[3px] border-white shadow-sm"></div>
-              </div> */}
-              <div>
-                <p className="text-xs text-slate-500 font-semibold tracking-wider uppercase mb-1">Health Dashboard</p>
-                <p className="text-2xl font-black text-slate-900 m-0 tracking-tight leading-none">My Reports</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <button onClick={refetch} className="w-11 h-11 bg-slate-50 border border-slate-100 rounded-2xl flex items-center justify-center relative hover:bg-slate-100 transition-colors shadow-sm" title="Refresh">
-                <RefreshCw size={18} className={`text-slate-600 ${loading ? 'animate-spin' : ''}`} />
-              </button>
-              {/* <button onClick={openSidebar} className="w-11 h-11 bg-slate-50 border border-slate-100 rounded-2xl flex items-center justify-center relative hover:bg-slate-100 transition-colors shadow-sm" title="Menu">
-                <Menu size={18} className="text-slate-600" />
-              </button> */}
-            </div>
-          </div>
+        <Header
+          token={token}
+          title="Analytics"
+          onRefresh={refetch}
+          isRefreshing={loading}
+        />
 
           {/* Health Score Card - Neumorphic Light */}
           <div className="group bg-white border border-slate-100 hover:border-blue-100 rounded-3xl p-6 shadow-[0_8px_30px_rgba(0,0,0,0.04)] hover:shadow-[0_20px_40px_rgba(59,130,246,0.08)] hover:-translate-y-1 transition-all duration-500 mb-6 relative overflow-hidden">
@@ -110,7 +91,6 @@ const Analaytics = ({ token }: DashboardProps) => {
                 <p className="text-sm font-black text-slate-800">{loading ? '—' : groupedReports.length}</p>
               </div>
             </div>
-          </div>
 
           {/* Segmented Control */}
           <div className="bg-slate-100 p-1.5 rounded-2xl flex gap-1 relative z-10">
