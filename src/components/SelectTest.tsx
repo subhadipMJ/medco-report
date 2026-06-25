@@ -18,10 +18,7 @@ import { useLocation } from "react-router-dom";
 import { useReportCompare } from "../hooks/useReportCompare";
 import { CompareReportParameter } from "../types/api";
 
-interface TestEntry {
-  parameter_id: string;
-  parameter_name: string;
-  parameter_unit: string;
+interface TestEntry extends CompareReportParameter {
   value: string;
 }
 
@@ -98,9 +95,7 @@ const SelectTest = ({ token }: SelectTestProps) => {
           (t) => t.parameter_id === p.parameter_id
         );
         return {
-          parameter_id: p.parameter_id,
-          parameter_name: p.parameter_name,
-          parameter_unit: p.parameter_unit,
+          ...p,
           value: existing?.value || "",
         };
       });

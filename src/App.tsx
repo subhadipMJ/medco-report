@@ -6,6 +6,7 @@ import Compare from './components/Compare';
 import GroupWise from './components/GroupWise';
 import Analaytics from './components/Analaytics';
 import Prescription from './components/Prescription';
+import PrescriptionView from './components/PrescriptionView';
 import Profile from './components/Profile';
 import AddReport from './components/AddReport';
 import SelectTest from './components/SelectTest';
@@ -37,6 +38,7 @@ function AppRoutes() {
         <Route path="/analaytics" element={<Analaytics token={token} />} />
         <Route path="/compare" element={<Compare token={token} />} />
         <Route path="/prescription" element={<Prescription token={token} />} />
+        <Route path="/prescription-view" element={<PrescriptionView />} />
         <Route path="/profile" element={<Profile token={token} />} />
         <Route path="/add-report" element={<AddReport token={token} />} />
         <Route path="/select-test" element={<SelectTest token={token} />} />

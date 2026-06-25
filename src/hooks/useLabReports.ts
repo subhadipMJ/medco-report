@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
-import { fetchLabReports } from '../services/api';
-import { LabReport, GroupedByTestType } from '../types/api';
+import { addLabReport, fetchLabReports } from '../services/api';
+import { LabReport, GroupedByTestType, AddLabReportRequest } from '../types/api';
 
 const groupReports = (lists: LabReport[]): GroupedByTestType[] => {
   if (!lists || lists.length === 0) return [];
@@ -62,6 +62,14 @@ interface UseLabReportsResult {
   isLoadingMore: boolean;
   error: string | null;
   refetch: () => void;
+}
+
+interface UseAddLabReportResult {
+  submit: (request: AddLabReportRequest) => Promise<void>;
+  success: string | null;
+  loading: boolean;
+  error: string | null;
+  reset: () => void;
 }
 
 export const useLabReports = (
@@ -141,4 +149,38 @@ export const useLabReports = (
   const refetch = () => setTrigger(t => t + 1);
 
   return { data, rawList, pagination, loading, isLoadingMore, error, refetch };
+};
+
+export const useAddLabReport = (token: string | null): UseAddLabReportResult => {
+  const [success, setSuccess] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const submit = async (request: AddLabReportRequest): Promise<void> => {
+    if (!token) return;
+    setLoading(true);
+    setError(null);
+
+    try {
+      const response = await addLabReport(token, request);
+      if (response.success > 0 && response.message) {
+        setSuccess(response.message);
+      } else {
+        setSuccess('Lab report added successfully');
+      }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to add lab report';
+      setError(message);
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const reset = () => {
+    setSuccess(null);
+    setError(null);
+  };
+
+  return { loading, error, success, submit, reset };
 };

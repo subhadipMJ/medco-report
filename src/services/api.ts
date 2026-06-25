@@ -2,8 +2,14 @@ import axios from "axios";
 import {
   AddDoctorRequest,
   AddDoctorResponse,
+  AddLabReportRequest,
+  AddLabReportResponse,
   AddLabRequest,
   AddLabResponse,
+  AddVitalOthersRequest,
+  AddVitalOthersResponse,
+  AddVitalRequest,
+  AddVitalResponse,
   CompareReportDetailsResponse,
   CompareReportsResponse,
   DoctorResponse,
@@ -18,6 +24,8 @@ import {
   LabResponse,
   PrescriptionResponse,
   UserProfileResponse,
+  VitalsOthersResponse,
+  VitalsResponse,
 } from "../types/api";
 import { cacheResponse, getCachedResponse } from "./offlineCache";
 
@@ -45,6 +53,8 @@ const inFlightPrescriptions = new Map<string, Promise<PrescriptionResponse>>();
 const inFlightUserProfile = new Map<string, Promise<UserProfileResponse>>();
 const inFlightDoctor = new Map<string, Promise<DoctorResponse>>();
 const inFlightLab = new Map<string, Promise<LabResponse>>();
+const inFlightVitals=new Map<string, Promise<VitalsResponse>>();
+const inFlightVitalsOthers = new Map<string, Promise<VitalsOthersResponse>>();
 
 export const fetchCompareReports = async (
   token: string,
@@ -239,7 +249,7 @@ export const fetchLabReports = async (
       // if (page) body.page = page;
 
       const response = await fetch(
-        `${BASE_URL}/web/reports?page=${page || 1}`,
+        `${BASE_URL}/web/reports?page=${page || 1}&start_date=${start_date || ""}&end_date=${end_date || ""}`,
         {
           method: "POST",
           headers: {
@@ -687,4 +697,220 @@ export const addLab = async (
     }
   })();
   return promise;
+};
+
+export const addLabReport = async (
+  token: string,
+  request: AddLabReportRequest,
+): Promise<AddLabReportResponse> => {
+   // const formData = new FormData();
+  // formData.append("date_of_test", new Date(request.date_of_test).toISOString());
+  // formData.append("lab_name", request.lab_name);
+  // formData.append("doctor_name", request.doctor_name);
+  // formData.append("tests", JSON.stringify([]));
+  // request.tests.forEach((test,index) => {
+  //   formData.append(`test[${index}][test_id]`, test.test_id.toString());
+  //   formData.append(`test[${index}][group_id]`, test.group_id.toString());
+  //   formData.append(`test[${index}][parameter_id]`, test.parameter_id.toString());
+  //   formData.append(`test[${index}][test_value]`, test.test_value.toString());
+  //   if (test.test_report) {
+  //     formData.append(`test[${index}][test_report]`, test.test_report);
+  //   }
+  // });
+//   for (const [key, value] of formData.entries()) {
+//   console.log(`${key}:`, value);
+// }
+
+  // const fileToBase64 = (file: File): Promise<string> =>
+  //   new Promise((resolve, reject) => {
+  //     const reader = new FileReader();
+  //     reader.onload = () => resolve(reader.result as string);
+  //     reader.onerror = reject;
+  //     reader.readAsDataURL(file);
+  //   });
+
+  // const testsWithBase64 = await Promise.all(
+  //   request.tests.map(async (test) => ({
+  //     ...test,
+  //     test_report: test.test_report ? await fileToBase64(test.test_report) : undefined,
+  //   })),
+  // );
+
+  // const payload = { ...request, tests: testsWithBase64 };
+  const payload = { ...request };
+
+  // console.log(payload)
+
+  try {
+    const response = await fetch(`${BASE_URL}/user-lab-report/entry`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+
+    if (response.status === 429) {
+      const retryAfter = response.headers.get("Retry-After") || "60";
+      throw new Error(
+        `Rate limited. Too many requests. Please wait ${retryAfter}s before retrying.`,
+      );
+    }
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(
+        `API error: ${response.status} ${response.statusText}\n${errorText}`,
+      );
+    }
+
+    const data: AddLabReportResponse = await response.json();
+    return data;
+  } catch (err) {
+    throw err;
+  }
+};
+
+export const fetchVitals = async (token: string): Promise<VitalsResponse> => {
+  const cacheKey = `vitals-${token.slice(-8)}`;
+  if (inFlightVitals.has(cacheKey)) {
+    return inFlightVitals.get(cacheKey)!;
+  }
+
+  const promise = (async () => {
+    try {
+      const response = await fetch(`${BASE_URL}/user-vitals`, {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+      });
+
+      if (response.status === 429) {
+        const retryAfter = response.headers.get("Retry-After") || "60";
+        throw new Error(
+          `Rate limited. Too many requests. Please wait ${retryAfter}s before retrying.`,
+        );
+      }
+
+      if (!response.ok) {
+        throw new Error(`API error: ${response.status} ${response.statusText}`);
+      }
+
+      const data: VitalsResponse = await response.json();
+      return data;
+    } catch (err) {
+      throw err;
+    } finally {
+      inFlightVitals.delete(cacheKey);
+    }
+  })();
+
+  inFlightVitals.set(cacheKey, promise);
+  return promise;
+};
+
+export const addVitals = async (token: string, vital: AddVitalRequest): Promise<AddVitalResponse> => {
+  try {
+    const response = await fetch(`${BASE_URL}/user-vitals`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+      body: JSON.stringify(vital),
+    });
+
+    if (response.status === 429) {
+      const retryAfter = response.headers.get("Retry-After") || "60";
+      throw new Error(
+        `Rate limited. Too many requests. Please wait ${retryAfter}s before retrying.`,
+      );
+    }
+
+    if (!response.ok) {
+      throw new Error(`API error: ${response.status} ${response.statusText}`);
+    }
+
+    const data: AddVitalResponse = await response.json();
+    return data;
+  } catch (err) {
+    throw err;
+  }
+};
+
+export const fetchVitalsOthers = async (token: string): Promise<VitalsOthersResponse> => {
+  const cacheKey = `vitals-others-${token.slice(-8)}`;
+  if (inFlightVitalsOthers.has(cacheKey)) {
+    return inFlightVitalsOthers.get(cacheKey)!;
+  }
+
+  const promise = (async () => {
+    try {
+      const response = await fetch(`${BASE_URL}/user-vital-tests`, {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+      });
+
+      if (response.status === 429) {
+        const retryAfter = response.headers.get("Retry-After") || "60";
+        throw new Error(
+          `Rate limited. Too many requests. Please wait ${retryAfter}s before retrying.`,
+        );
+      }
+
+      if (!response.ok) {
+        throw new Error(`API error: ${response.status} ${response.statusText}`);
+      }
+
+      const data: VitalsOthersResponse = await response.json();
+      return data;
+    } catch (err) {
+      throw err;
+    } finally {
+      inFlightVitalsOthers.delete(cacheKey);
+    }
+  })();
+
+  inFlightVitalsOthers.set(cacheKey, promise);
+  return promise;
+};
+
+export const addVitalsOthers = async (token: string, vital: AddVitalOthersRequest): Promise<AddVitalOthersResponse> => {
+  try {
+    const response = await fetch(`${BASE_URL}/user-vital-tests`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+      body: JSON.stringify(vital),
+    });
+
+    if (response.status === 429) {
+      const retryAfter = response.headers.get("Retry-After") || "60";
+      throw new Error(
+        `Rate limited. Too many requests. Please wait ${retryAfter}s before retrying.`,
+      );
+    }
+
+    if (!response.ok) {
+      throw new Error(`API error: ${response.status} ${response.statusText}`);
+    }
+
+    const data: AddVitalOthersResponse = await response.json();
+    return data;
+  } catch (err) {
+    throw err;
+  }
 };

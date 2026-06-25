@@ -10,21 +10,20 @@ import {
   Check,
   ArrowLeft,
   RefreshCw,
-  Upload,
-  Trash2,
-  FileText,
+  // Upload,
+  // Trash2,
+  // FileText,
 } from "lucide-react";
 import { useNavigateWithToken } from "../hooks/useNavigateWithToken";
 import { useLocation } from "react-router-dom";
-import { CompareReportParameter } from "../types/api";
+import { AddLabReportRequest, CompareReportParameter } from "../types/api";
 import { useAddDoctor, useDoctor } from "../hooks/useDoctor";
 import { useAddLab, useLab } from "../hooks/useLab";
+import { useAddLabReport } from "../hooks/useLabReports";
 
-interface TestEntry {
-  parameter_id: string;
-  parameter_name: string;
-  parameter_unit: string;
+interface TestEntry extends CompareReportParameter {
   value: string;
+  test_report?: File;
 }
 
 interface AddReportProps {
@@ -159,8 +158,7 @@ const AddReport = ({ token }: AddReportProps) => {
   const [showAddLab, setShowAddLab] = useState(false);
   const [newLab, setNewLab] = useState("");
 
-  const [files, setFiles] = useState<File[]>([]);
-  const [previews, setPreviews] = useState<Map<number, string>>(new Map());
+  const [previews, setPreviews] = useState<Record<string, string>>({});
 
   const {
     doctors: apiDoctors,
@@ -172,6 +170,9 @@ const AddReport = ({ token }: AddReportProps) => {
   const { submit: addDoctorSubmit, loading: addDoctorLoading } = useAddDoctor(
     token || null,
   );
+
+  const { submit: addLabReportSubmit, loading: addLabReportLoading } =
+    useAddLabReport(token || null);
 
   const {
     labs: apiLabs,
@@ -194,23 +195,41 @@ const AddReport = ({ token }: AddReportProps) => {
       ? apiLabs.map((l) => ({ value: String(l.id), label: l.lab_name }))
       : [];
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const selected = e.target.files;
-    if (selected && selected.length > 0) {
-      const fileArray = Array.from(selected);
-      setFiles((prev) => [...prev, ...fileArray]);
-    }
-    e.target.value = "";
-  };
+  // const handleFileChangeForTest = (
+  //   e: React.ChangeEvent<HTMLInputElement>,
+  //   parameter_id: string,
+  // ) => {
+  //   const selected = e.target.files;
+  //   if (selected && selected.length > 0) {
+  //     const file = selected[0];
+  //     setTests((prev) =>
+  //       prev.map((t) =>
+  //         t.parameter_id === parameter_id ? { ...t, test_report: file } : t,
+  //       ),
+  //     );
+  //     if (file.type.startsWith("image/")) {
+  //       const url = URL.createObjectURL(file);
+  //       setPreviews((prev) => ({ ...prev, [parameter_id]: url }));
+  //     }
+  //   }
+  //   e.target.value = "";
+  // };
 
-  const removeFile = (index: number) => {
-    setFiles((prev) => prev.filter((_, i) => i !== index));
-    setPreviews((prev) => {
-      const next = new Map(prev);
-      next.delete(index);
-      return next;
-    });
-  };
+  // const removeFileForTest = (parameter_id: string) => {
+  //   setTests((prev) =>
+  //     prev.map((t) =>
+  //       t.parameter_id === parameter_id ? { ...t, test_report: undefined } : t,
+  //     ),
+  //   );
+  //   setPreviews((prev) => {
+  //     const next = { ...prev };
+  //     if (next[parameter_id]) {
+  //       URL.revokeObjectURL(next[parameter_id]);
+  //       delete next[parameter_id];
+  //     }
+  //     return next;
+  //   });
+  // };
 
   const reset = () => {
     setDate("");
@@ -218,8 +237,7 @@ const AddReport = ({ token }: AddReportProps) => {
     setLab(null);
     setStep(1);
     setTests([]);
-    setFiles([]);
-    setPreviews(new Map());
+    setPreviews({});
   };
 
   const handleClose = () => {
@@ -236,7 +254,7 @@ const AddReport = ({ token }: AddReportProps) => {
       const exists = prev.find((t) => t.parameter_id === param.parameter_id);
       if (exists)
         return prev.filter((t) => t.parameter_id !== param.parameter_id);
-      return [...prev, { ...param, value: "" }];
+      return [...prev, { ...param, value: "", test_report: undefined }];
     });
   };
 
@@ -249,17 +267,10 @@ const AddReport = ({ token }: AddReportProps) => {
   };
 
   useEffect(() => {
-    const newPreviews = new Map<number, string>();
-    files.forEach((file, idx) => {
-      if (file.type.startsWith("image/")) {
-        newPreviews.set(idx, URL.createObjectURL(file));
-      }
-    });
-    setPreviews(newPreviews);
     return () => {
-      newPreviews.forEach((url) => URL.revokeObjectURL(url));
+      Object.values(previews).forEach((url) => URL.revokeObjectURL(url));
     };
-  }, [files]);
+  }, []);
 
   const handleAddDoctor = async (name: string) => {
     if (!name || !name.trim() || !token) return;
@@ -285,11 +296,32 @@ const AddReport = ({ token }: AddReportProps) => {
     }
   };
 
-  const handleFinalSubmit = () => {
-    console.log("Add report:", { token, date, doctor, lab, tests, files });
-    // reset();
-    // navigate("/");
+  const handleFinalSubmit = async () => {
+    const request: AddLabReportRequest = {
+      date_of_test: date,
+      lab_name: lab?.label || "",
+      doctor_name: doctor?.label || "",
+      tests: tests.map((t) => ({
+        test_id: Number(t.test_id),
+        group_id: t.group_id,
+        parameter_id: t.parameter_id,
+        test_value: t.value,
+        test_report: t.test_report,
+      })),
+    };
+
+    // console.log("Add report request:", request);
+
+    try {
+      await addLabReportSubmit(request);
+      reset();
+      navigate("/");
+    } catch (err: any) {
+      alert(err.message || "Failed to add lab");
+    }
   };
+
+  // console.log(tests);
 
   return (
     <div className="min-h-screen bg-slate-50 pb-24">
@@ -358,7 +390,13 @@ const AddReport = ({ token }: AddReportProps) => {
               />
               <button
                 type="button"
-                onClick={() => (document.getElementById("date-picker") as HTMLInputElement | null)?.showPicker?.()}
+                onClick={() =>
+                  (
+                    document.getElementById(
+                      "date-picker",
+                    ) as HTMLInputElement | null
+                  )?.showPicker?.()
+                }
                 className="w-full h-14 rounded-2xl border border-slate-200 bg-white pl-4 pr-12 text-lg font-bold text-slate-800 outline-none focus:border-blue-400 focus:bg-white transition-colors flex items-center text-left"
               >
                 {date
@@ -523,17 +561,6 @@ const AddReport = ({ token }: AddReportProps) => {
               </div>
             )}
           </div>
-
-          {/* lab information */}
-          <div>
-            <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">
-              Lab Information
-            </label>
-            <textarea
-              rows={3}
-              className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-base text-slate-800 outline-none focus:border-slate-400 resize-none"
-            />
-          </div>
         </div>
       )}
 
@@ -598,71 +625,69 @@ const AddReport = ({ token }: AddReportProps) => {
                         </span>
                       )}
                     </div>
+
+                    {/* Attachments */}
+                    {/* <div className="flex-1 min-w-0 my-6">
+                      <input
+                        id={`file-input-${test.parameter_id}`}
+                        type="file"
+                        accept="image/*,.pdf,.doc,.docx"
+                        onChange={(e) => handleFileChangeForTest(e, test.parameter_id)}
+                        className="sr-only"
+                      />
+                      <label
+                        htmlFor={`file-input-${test.parameter_id}`}
+                        className="w-full h-14 rounded-2xl border border-dashed border-slate-300 bg-green-700 text-white text-base font-bold flex items-center justify-center gap-2 hover:bg-white transition-colors cursor-pointer"
+                      >
+                        <Upload size={16} />
+                        Upload File
+                      </label>
+
+                      {test.test_report && (
+                        <div className="mt-3 grid gap-3">
+                          <div
+                            key={`${test.test_report.name}-${test.parameter_id}`}
+                            className="flex items-center bg-white border border-slate-100 rounded-2xl overflow-hidden shadow-sm"
+                          >
+                            {test.test_report.type.startsWith("image/") &&
+                            previews[test.parameter_id] ? (
+                              <div className="w-16 h-16 shrink-0 bg-slate-100">
+                                <img
+                                  src={previews[test.parameter_id]}
+                                  alt={test.test_report.name}
+                                  className="w-full h-full object-cover"
+                                />
+                              </div>
+                            ) : (
+                              <div className="w-16 h-16 shrink-0 bg-white flex items-center justify-center">
+                                <FileText size={24} className="text-slate-300" />
+                              </div>
+                            )}
+                            <div className="flex-1 min-w-0 p-2.5">
+                              <p className="text-xs font-medium text-slate-700 truncate">
+                                {test.test_report.name}
+                              </p>
+                              <div className="flex items-center justify-between mt-1">
+                                <p className="text-[10px] text-slate-400">
+                                  {(test.test_report.size / 1024).toFixed(1)} KB
+                                </p>
+                                <button
+                                  onClick={() => removeFileForTest(test.parameter_id)}
+                                  className="w-6 h-6 rounded-md text-white bg-red-500 flex items-center justify-center hover:bg-red-50 hover:text-red-500 transition-colors"
+                                >
+                                  <Trash2 size={12} />
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div> */}
                   </div>
                 </div>
               ))}
             </div>
           )}
-
-          {/* Attachments */}
-          <div>
-            <input
-              id="file-input"
-              type="file"
-              multiple
-              accept="image/*,.pdf,.doc,.docx"
-              onChange={handleFileChange}
-              className="sr-only"
-            />
-            <label
-              htmlFor="file-input"
-              className="w-full h-14 rounded-2xl border border-dashed border-slate-300 bg-white text-slate-600 text-base font-bold flex items-center justify-center gap-2 hover:bg-white transition-colors cursor-pointer"
-            >
-              <Upload size={16} />
-              Upload Files
-            </label>
-
-            {files.length > 0 && (
-              <div className="mt-3 grid gap-3">
-                {files.map((file, idx) => (
-                  <div
-                    key={`${file.name}-${idx}`}
-                    className="flex items-center bg-white border border-slate-100 rounded-2xl overflow-hidden shadow-sm"
-                  >
-                    {file.type.startsWith("image/") && previews.has(idx) ? (
-                      <div className="w-16 h-16 shrink-0 bg-slate-100">
-                        <img
-                          src={previews.get(idx)}
-                          alt={file.name}
-                          className="w-full h-full object-cover"
-                        />
-                      </div>
-                    ) : (
-                      <div className="w-16 h-16 shrink-0 bg-white flex items-center justify-center">
-                        <FileText size={24} className="text-slate-300" />
-                      </div>
-                    )}
-                    <div className="flex-1 min-w-0 p-2.5">
-                      <p className="text-xs font-medium text-slate-700 truncate">
-                        {file.name}
-                      </p>
-                      <div className="flex items-center justify-between mt-1">
-                        <p className="text-[10px] text-slate-400">
-                          {(file.size / 1024).toFixed(1)} KB
-                        </p>
-                        <button
-                          onClick={() => removeFile(idx)}
-                          className="w-6 h-6 rounded-md bg-red-500 flex items-center justify-center hover:bg-red-50 hover:text-red-500 transition-colors"
-                        >
-                          <Trash2 size={12} />
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
         </div>
       )}
 
@@ -680,10 +705,13 @@ const AddReport = ({ token }: AddReportProps) => {
           ) : (
             <button
               onClick={handleFinalSubmit}
-              disabled={tests.length === 0}
+              disabled={tests.length === 0 || addLabReportLoading}
               className="w-full h-14 rounded-2xl bg-slate-900 text-white text-sm font-bold flex items-center justify-center gap-2 hover:bg-slate-800 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
             >
-              Save Report
+              {addLabReportLoading && (
+                <RefreshCw size={16} className="animate-spin" />
+              )}
+              {addLabReportLoading ? "Saving..." : "Save Report"}
             </button>
           )}
         </div>

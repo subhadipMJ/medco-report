@@ -172,7 +172,7 @@ export default function GroupWise({ token }: GroupWiseProps) {
           isRefreshing={loading}
         />
 
-        <div className="px-6 pb-24 relative z-10">
+        <div className="px-6 pb-24 relative">
           <div className="animate-fade-in space-y-6">
             <GroupWiseView groupedReports={groupedReports} />
           </div>

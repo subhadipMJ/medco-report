@@ -169,6 +169,8 @@ export interface CompareReportParameter {
   parameter_unit: string;
   start_range?: string;
   end_range?: string;
+  group_id: string;
+  test_id: string;
 }
 
 export interface CompareReportsResponse {
@@ -295,6 +297,102 @@ export interface AddLabResponse {
   data: {
     user_id: number;
     lab_name: string;
+    updated_at: string;
+    created_at: string;
+    id: number;
+  };
+}
+
+export interface AddLabReportRequest {
+  date_of_test: string;
+  lab_name: string;
+  doctor_name: string;
+  tests: {
+    test_id: number;
+    group_id: string;
+    parameter_id: string;
+    test_value: string;
+    test_report?: File;
+  }[];
+}
+
+export interface AddLabReportResponse {
+  success: number;
+  error: number;
+  message: string;
+}
+
+export interface Vitals {
+  id: number;
+  user_id: number;
+  height: string;
+  weight: string;
+  bmi: string;
+  pulse: string;
+  waist: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface VitalsResponse {
+  success: number;
+  error: number;
+  message?: string;
+  data: Vitals;
+}
+
+export interface AddVitalRequest {
+  height?: number;
+  weight?: number;
+  bmi?: number;
+  pulse?: number;
+  waist?: number;
+}
+
+export interface AddVitalResponse {
+  success: boolean;
+  message: string;
+  data: {
+    user_id: number;
+    height: string;
+    weight: string;
+    bmi: string;
+    pulse: string;
+    waist: string;
+    updated_at: string;
+    created_at: string;
+    id: number;
+  };
+}
+
+export interface VitalsOthers {
+  id: number;
+  user_id: number;
+  key: string;
+  value: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface VitalsOthersResponse {
+  success: number;
+  error: number;
+  message?: string;
+  data: VitalsOthers[];
+}
+
+export interface AddVitalOthersRequest {
+  key: string;
+  value: string;
+}
+
+export interface AddVitalOthersResponse {
+  success: boolean;
+  message: string;
+  data: {
+    user_id: number;
+    key: string;
+    value: string;
     updated_at: string;
     created_at: string;
     id: number;

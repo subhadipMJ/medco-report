@@ -6,6 +6,7 @@ import {
   Stethoscope,
 } from "lucide-react";
 import { usePrescription } from "../hooks/usePrescription";
+import { useNavigateWithToken } from "../hooks/useNavigateWithToken";
 import type { Prescription } from "../types/api";
 import Header from "./Header";
 
@@ -18,10 +19,12 @@ function formatDateDMY(dateStr: string): string {
 }
 
 function PrescriptionCard({ item }: { item: Prescription }) {
+  const navigate = useNavigateWithToken();
+
   const handleView = () => {
     const url = item.prescription_url;
     if (!url) return;
-    window.location.href = url;
+    navigate(`/prescription-view?url=${encodeURIComponent(url)}`);
   };
 
   return (
@@ -76,7 +79,7 @@ export default function Prescription({ token: _token }: PrescriptionProps) {
           isRefreshing={prescriptionsLoading}
         />
 
-        <div className="px-6 pb-24 relative z-10">
+        <div className="px-6 pb-24 relative">
           <div className="animate-fade-in space-y-5">
             {prescriptionsError ? (
               <div className="flex flex-col items-center justify-center py-20 gap-3">

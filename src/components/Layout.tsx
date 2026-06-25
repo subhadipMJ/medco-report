@@ -92,7 +92,7 @@ function GlobalBottomNav() {
 }
 
 export default function Layout() {
-  const isNavbarShow = useLocation().pathname === "/select-test" || useLocation().pathname === "/add-report";
+  const isNavbarShow = useLocation().pathname === "/select-test" || useLocation().pathname === "/add-report" || useLocation().pathname === "/prescription-view";
   return (
     <>
       <Outlet />

@@ -247,7 +247,7 @@ function CompareContent({
         <table className="w-full text-left text-xs">
           <thead>
             <tr className="border-b border-slate-200 bg-slate-50/80">
-              <th className="sticky left-0 z-10 min-w-[140px] border-r border-slate-200 bg-slate-50/80 px-3 py-2.5 font-bold text-slate-700">
+              <th className="sticky left-0 min-w-[140px] border-r border-slate-200 bg-slate-50/80 px-3 py-2.5 font-bold text-slate-700">
                 Parameter
               </th>
               {tableData.dates.map((date) => (
@@ -266,7 +266,7 @@ function CompareContent({
                 key={row.name}
                 className={idx % 2 === 0 ? "bg-white" : "bg-slate-50/40"}
               >
-                <td className="sticky left-0 z-10 min-w-[140px] border-r border-slate-200 bg-white/95 px-3 py-2.5 font-semibold text-slate-800">
+                <td className="sticky left-0 min-w-[140px] border-r border-slate-200 bg-white/95 px-3 py-2.5 font-semibold text-slate-800">
                   <div>{row.name}</div>
                   <div className="mt-0.5 text-[10px] text-slate-400">
                     {row.unit}
@@ -394,7 +394,7 @@ export default function Compare({ token }: CompareProps) {
           isRefreshing={paramsLoading}
         />
 
-        <div className="px-6 pb-24 relative z-10">
+        <div className="px-6 pb-24 relative">
           <div className="animate-fade-in space-y-6">
             {params.length === 0 && !paramsLoading ? (
               <div className="bg-slate-50 border-2 border-slate-200 rounded-3xl p-6 text-center">

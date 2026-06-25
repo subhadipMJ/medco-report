@@ -14,7 +14,6 @@ import {
   Thermometer,
   Bone,
   Activity,
-  Ruler,
   SlidersHorizontal,
   ChevronDown,
   type LucideIcon,
@@ -23,6 +22,7 @@ import { useDebounce } from "../hooks/useDebounce";
 import { useNavigateWithToken } from "../hooks/useNavigateWithToken";
 import { useLabReports } from "../hooks/useLabReports";
 import Header from "./Header";
+// import { useVitalsOthers } from "../hooks/useVitals";
 
 type TrendDirection = "up" | "down" | "flat";
 
@@ -50,10 +50,6 @@ const Dashboard = ({ token }: DashboardProps) => {
     "all" | "critical" | "normal"
   >("all");
   const [page, setPage] = useState(1);
-
-  const bp = "120/80";
-  const pulse = 72;
-  const waist = 34;
 
   // Read filters from URL on mount
   useEffect(() => {
@@ -165,6 +161,8 @@ const Dashboard = ({ token }: DashboardProps) => {
       status: statusFilter === "all" ? undefined : statusFilter,
       page,
     });
+
+  // const { vitalsOthers } = useVitalsOthers(token);
 
   useEffect(() => {
     setPage(1);
@@ -321,41 +319,23 @@ const Dashboard = ({ token }: DashboardProps) => {
         />
 
         {/* Vitals row */}
-        <div className="px-6 my-3 grid grid-cols-3 gap-3">
-          <div className="bg-white rounded-2xl border border-slate-100 p-3 flex items-center gap-2.5 shadow-sm">
-            <div className="w-8 h-8 rounded-xl bg-amber-50 flex items-center justify-center shrink-0">
-              <Heart size={14} className="text-red-500" />
+        {/* <div className="px-6 my-3 grid grid-cols-3 gap-3">
+          {vitalsOthers?.map((others, index) => (
+            <div
+              key={index}
+              className="bg-white rounded-2xl border border-slate-100 p-3 flex items-center gap-2.5 shadow-sm"
+            >
+              <div>
+                <p className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider">
+                  {others.key}
+                </p>
+                <p className="text-sm font-bold text-slate-800">
+                  {others.value}
+                </p>
+              </div>
             </div>
-            <div>
-              <p className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider">
-                BP
-              </p>
-              <p className="text-sm font-bold text-slate-800">{bp}</p>
-            </div>
-          </div>
-          <div className="bg-white rounded-2xl border border-slate-100 p-3 flex items-center gap-2.5 shadow-sm">
-            <div className="w-8 h-8 rounded-xl bg-orange-50 flex items-center justify-center shrink-0">
-              <Activity size={14} className="text-orange-500" />
-            </div>
-            <div>
-              <p className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider">
-                Pulse
-              </p>
-              <p className="text-sm font-bold text-slate-800">{pulse}</p>
-            </div>
-          </div>
-          <div className="bg-white rounded-2xl border border-slate-100 p-3 flex items-center gap-2.5 shadow-sm">
-            <div className="w-8 h-8 rounded-xl bg-violet-50 flex items-center justify-center shrink-0">
-              <Ruler size={14} className="text-violet-500" />
-            </div>
-            <div>
-              <p className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider">
-                Waist
-              </p>
-              <p className="text-sm font-bold text-slate-800">{waist}</p>
-            </div>
-          </div>
-        </div>
+          ))}
+        </div> */}
 
         {/* Search & Date Filter */}
         <div className="px-6 space-y-3 mb-6">
@@ -486,7 +466,7 @@ const Dashboard = ({ token }: DashboardProps) => {
             </div>
           </div> */}
 
-        <div className="px-6 pb-24 relative z-10">
+        <div className="px-6 pb-24 relative">
           <div className="animate-fade-in space-y-6">
             {loading && (
               <div className="flex flex-col items-center justify-center py-20 gap-4">
