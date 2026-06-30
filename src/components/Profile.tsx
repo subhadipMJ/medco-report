@@ -7,13 +7,17 @@ import {
   ShieldCheck,
   CheckCircle2,
   Crown,
+  ArrowLeft,
+  RefreshCw,
 } from "lucide-react";
+import { useNavigateWithToken } from "../hooks/useNavigateWithToken";
 
 interface ProfileProps {
   token: string;
 }
 
 const Profile = ({ token: _token }: ProfileProps) => {
+  const navigate = useNavigateWithToken();
   const [syncEnabled, setSyncEnabled] = useState(true);
 
   const user = {
@@ -27,8 +31,24 @@ const Profile = ({ token: _token }: ProfileProps) => {
   };
 
   return (
-    <div className="min-h-screen bg-white font-sans">
-      <div className="max-w-4xl mx-auto min-h-screen pb-24">
+    <div className="min-h-screen bg-slate-50 font-sans">
+      <div className="max-w-[1440px] mx-auto bg-white min-h-screen pb-24">
+        <div className="flex items-center justify-between px-5 pt-6 pb-4">
+          <button
+            onClick={() => navigate("/")}
+            className="w-9 h-9 rounded-xl bg-white border border-slate-200 flex items-center justify-center hover:bg-slate-50 transition-colors"
+          >
+            <ArrowLeft size={16} className="text-slate-600" />
+          </button>
+          <p className="text-lg font-black text-slate-900">Profile</p>
+          <button
+            onClick={() => window.location.reload()}
+            className="w-9 h-9 rounded-xl bg-white border border-slate-200 flex items-center justify-center hover:bg-slate-50 transition-colors"
+            title="Refresh"
+          >
+            <RefreshCw size={16} />
+          </button>
+        </div>
         {/* Header / Avatar */}
         <div className="px-5 pt-8 pb-4">
           <div className="flex items-center gap-4">

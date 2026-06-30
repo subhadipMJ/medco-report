@@ -1,73 +1,103 @@
-import { RefreshCw, Settings } from "lucide-react";
+import {
+  RefreshCw,
+  // Settings
+} from "lucide-react";
 import {
   useAddVital,
-  useAddVitalOthers,
+  // useAddVitalOthers,
   useVitals,
-  useVitalsOthers,
+  // useVitalsOthers,
 } from "../hooks/useVitals";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import VitalsModal from "./VitalsModal";
-import { AddVitalOthersRequest, AddVitalRequest } from "../types/api";
+import {
+  // AddVitalOthersRequest,
+  AddVitalRequest,
+} from "../types/api";
+import { useUserProfile } from "../hooks/useUserProfile";
 
 interface HeaderProps {
   token: string;
-  title: string;
+  title?: string;
   onRefresh?: () => void;
   isRefreshing?: boolean;
   extra?: React.ReactNode;
+  onVitalsModalChange?: (open: boolean) => void;
 }
 
-const Header = ({ token, title, onRefresh, isRefreshing }: HeaderProps) => {
-  const { vitals, refetch } = useVitals(token);
-  const { vitalsOthers, refetch: refetchOthers } = useVitalsOthers(token);
-  const { submit, loading, error, reset } = useAddVital(token);
+const Header = ({ token, title, onRefresh, isRefreshing, onVitalsModalChange }: HeaderProps) => {
+  console.log("title", title);
   const {
-    submit: submitVitalOthers,
-    loading: vitalOthersLoading,
-    error: vitalOthersError,
-    reset: vitalOthersReset,
-  } = useAddVitalOthers(token);
+    user,
+    loading: loadingUser,
+    error: errorUser,
+    refetch: refetchUser,
+  } = useUserProfile(token);
+  const { vitals, refetch } = useVitals(token);
+  // const { vitalsOthers, refetch: refetchOthers } = useVitalsOthers(token);
+  const { submit, loading, error, reset } = useAddVital(token);
+  // const {
+  //   submit: submitVitalOthers,
+  //   loading: vitalOthersLoading,
+  //   error: vitalOthersError,
+  //   reset: vitalOthersReset,
+  // } = useAddVitalOthers(token);
 
   const [modal, setModal] = useState(false);
+
+  useEffect(() => {
+    onVitalsModalChange?.(modal);
+  }, [modal, onVitalsModalChange]);
   const [editModalKey, setEditModalKey] = useState<string | null>(null);
   const [editModalValue, setEditModalValue] = useState<string | null>(null);
   const [isEditModalKey, setIsEditModalKey] = useState<boolean>(false);
+  const [editModalUnit, setEditModalUnit] = useState<string | null>(null);
+  const [avatarError, setAvatarError] = useState(false);
 
-  // Derive initials from title (fallback to "U")
+  // Derive initials from name (fallback to "U")
   const initials =
-    title
-      .split(" ")
+    user?.name
+      ?.split(" ")
       .map((w) => w[0])
       .join("")
       .slice(0, 2)
       .toUpperCase() || "U";
 
   // Demo vitals – wire to real API data when available
-  const age = 32;
-  const gender = "Male";
-  const bloodGroup = "O+";
+  // const age = 32;
+  // const gender = "Male";
+  // const bloodGroup = "O+";
 
   const handleUpdateVital = async (key: string, value: string) => {
-    if (key === "bp") {
-      const request: Partial<AddVitalOthersRequest> = value
-        ? { key, value }
-        : {};
-      try {
-        await submitVitalOthers(request);
-        await refetchOthers();
-        setModal(false);
-        setIsEditModalKey(false);
-        setEditModalKey(null);
-        vitalOthersReset();
-      } catch (err: any) {
-        console.error("Failed to update vital others", vitalOthersError);
-      }
-      return;
-    }
+    // if (key === "bp") {
+    //   const request: Partial<AddVitalOthersRequest> = value
+    //     ? { key, value }
+    //     : {};
+    //   try {
+    //     await submitVitalOthers(request);
+    //     await refetchOthers();
+    //     setModal(false);
+    //     setIsEditModalKey(false);
+    //     setEditModalKey(null);
+    //     vitalOthersReset();
+    //   } catch (err: any) {
+    //     console.error("Failed to update vital others", vitalOthersError);
+    //   }
+    //   return;
+    // }
 
-    const request: Partial<AddVitalRequest> = value
-      ? { [key]: Number(value) || 0 }
-      : {};
+    const request: Partial<AddVitalRequest> = {};
+    if (value) {
+      if (key === "height") {
+        const match = value.match(/([\d.]+)\s*ft\s*([\d.]+)\s*in/);
+        if (match) {
+          request.height_ft = Number(match[1]) || 0;
+          request.height_inch = Number(match[2]) || 0;
+        }
+      } else {
+        request[key as keyof AddVitalRequest] = Number(value) || 0;
+      }
+    }
 
     try {
       await submit(request);
@@ -75,6 +105,7 @@ const Header = ({ token, title, onRefresh, isRefreshing }: HeaderProps) => {
       setModal(false);
       setIsEditModalKey(false);
       setEditModalKey(null);
+      setEditModalUnit(null);
       reset();
     } catch (err: any) {
       alert(error || "Failed to update vitals");
@@ -82,169 +113,176 @@ const Header = ({ token, title, onRefresh, isRefreshing }: HeaderProps) => {
   };
 
   return (
-    <div className="relative z-10">
-      {/* Top gradient area */}
-      <div className="bg-gradient-to-br from-violet-50 via-fuchsia-50 to-rose-50 px-6 pt-8 pb-6 rounded-b-[2.5rem]">
+    <div className="relative z-10 mb-4">
+      {/* Top header area with green glass effect */}
+      <div className="bg-gradient-to-br from-emerald-200/80 via-green-100/70 to-teal-200/80 backdrop-blur-md px-6 pt-8 pb-4 rounded-b-[2.5rem]">
         {/* Profile row */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             {/* Avatar */}
-            <div className="w-12 h-12 rounded-full bg-slate-800 flex items-center justify-center text-white font-bold text-sm border-2 border-rose-300">
-              {initials}
-            </div>
+            {(() => {
+              const raw = user?.avatar || user?.image;
+              const avatarUrl =
+                raw && !raw.startsWith("http")
+                  ? `https://www.medcoclinics.com${raw.startsWith("/") ? "" : "/"}${raw}`
+                  : raw;
+              return (
+                <div className="w-12 h-12 rounded-2xl bg-white flex items-center justify-center text-slate-700 font-bold text-sm border border-slate-200 shadow-sm overflow-hidden">
+                  {avatarUrl && !avatarError ? (
+                    <img
+                      src={avatarUrl}
+                      alt="Avatar"
+                      className="w-full h-full object-cover"
+                      onError={() => setAvatarError(true)}
+                    />
+                  ) : (
+                    initials
+                  )}
+                </div>
+              );
+            })()}
             <div>
-              <p className="text-sm font-bold text-slate-900">{title}</p>
-              <p className="text-xs text-slate-500">
-                {age} yrs <span className="mx-1">•</span> {gender}
+              <p className="text-xl font-bold text-slate-800">
+                {loadingUser ? "Loading..." : user?.name || "User"}
               </p>
+              {errorUser && <p className="text-xs text-red-500">{errorUser}</p>}
             </div>
           </div>
 
           <div className="flex items-center gap-2">
-            {/* Blood group badge */}
-            <div className="flex flex-col items-center justify-center rounded-2xl bg-rose-50 border border-rose-100 px-3 py-1.5">
-              <span className="text-[8px] font-bold uppercase tracking-wider text-rose-400">
-                Blood
-              </span>
-              <span className="text-sm font-black text-rose-600 leading-none">
-                {bloodGroup}
-              </span>
-            </div>
-            {/* Settings */}
-            <button className="w-9 h-9 rounded-xl bg-white/60 border border-white/70 flex items-center justify-center text-slate-500 hover:bg-white transition-colors">
-              <Settings size={16} />
-            </button>
             {/* Refresh */}
-            {onRefresh && (
-              <button
-                onClick={onRefresh}
-                className="w-9 h-9 rounded-xl bg-white/60 border border-white/70 flex items-center justify-center text-slate-500 hover:bg-white transition-colors"
-                title="Refresh"
-              >
-                <RefreshCw
-                  size={16}
-                  className={isRefreshing ? "animate-spin" : ""}
-                />
-              </button>
-            )}
+            <button
+              onClick={() => {
+                onRefresh?.();
+                refetchUser();
+              }}
+              className="w-9 h-9 rounded-xl bg-white border border-slate-200 flex items-center justify-center text-slate-600 hover:bg-slate-50 transition-colors"
+              title="Refresh"
+            >
+              <RefreshCw
+                size={16}
+                className={isRefreshing || loadingUser ? "animate-spin" : ""}
+              />
+            </button>
           </div>
         </div>
 
-        {/* Stats card */}
-        <div className="mt-3 grid grid-cols-3 gap-3">
-          <div className="bg-white rounded-2xl border border-slate-100 p-3 flex items-center gap-2.5 shadow-sm">
+        {/* Stats cards on white background below header */}
+        <div className="px-6 mt-2 pt-2 rounded-t-2xl">
+          <div className="grid grid-cols-3 gap-3 pb-4">
             <div
               onClick={() => {
                 setModal(true);
                 setEditModalKey("weight");
                 setEditModalValue(vitals?.weight ? String(vitals.weight) : "");
+                setEditModalUnit("kg");
               }}
+              className="bg-white/50 backdrop-blur-lg rounded-2xl border border-white/60 shadow-lg p-3 cursor-pointer hover:bg-white/60 transition-colors text-center"
             >
-              <p className="text-[10px] text-slate-400 font-semibold tracking-wider">
+              <p className="text-[10px] text-emerald-700 font-semibold tracking-wider">
                 Weight
               </p>
-              <p className="text-sm font-bold text-slate-800">
-                {vitals?.weight || "N/A"} kg
+              <p className="text-xs font-bold text-emerald-900">
+                {Math.trunc(Number(vitals?.weight)) || "N/A"}{" "}
+                <span className="text-xs font-medium text-emerald-600">kg</span>
               </p>
             </div>
-          </div>
-          <div className="bg-white rounded-2xl border border-slate-100 p-3 flex items-center gap-2.5 shadow-sm">
             <div
               onClick={() => {
                 setModal(true);
                 setEditModalKey("height");
-                setEditModalValue(vitals?.height ? String(vitals.height) : "");
+                setEditModalValue(vitals?.height_ft && vitals.height_inch ? String(vitals.height_ft) + " ft " + String(vitals.height_inch) + " in" : "");
+                setEditModalUnit("cm");
               }}
+              className="bg-white/50 backdrop-blur-lg rounded-2xl border border-white/60 shadow-lg p-3 cursor-pointer hover:bg-white/60 transition-colors text-center"
             >
-              <p className="text-[10px] text-slate-400 font-semibold tracking-wider">
+              <p className="text-[10px] text-emerald-700 font-semibold tracking-wider">
                 Height
               </p>
-              <p className="text-sm font-bold text-slate-800">
-                {vitals?.height || "N/A"} cm
+              <p className="text-xs font-bold text-emerald-900">
+                {(() => {
+                  const ft = vitals?.height_ft || 0;
+                  const inc = vitals?.height_inch || 0;
+                  return `${ft}'${inc}"`;
+                })()}
               </p>
             </div>
-          </div>
-          <div className="bg-white rounded-2xl border border-slate-100 p-3 flex items-center gap-2.5 shadow-sm">
             <div
-              onClick={() => {
-                setModal(true);
-                setEditModalKey("bmi");
-                setEditModalValue(vitals?.bmi ? String(vitals.bmi) : "");
-              }}
+              // onClick={() => {
+              //   setModal(true);
+              //   setEditModalKey("bmi");
+              //   setEditModalValue(vitals?.bmi ? String(vitals.bmi) : "");
+              //   setEditModalUnit("");
+              // }}
+              className="bg-white/50 backdrop-blur-lg rounded-2xl border border-white/60 shadow-lg p-3 text-center"
             >
-              <p className="text-[10px] text-slate-400 font-semibold tracking-wider">
+              <p className="text-[10px] text-emerald-700 font-semibold tracking-wider">
                 BMI
               </p>
-              <p className="text-sm font-bold text-slate-800">
-                {vitals?.bmi || "N/A"}
+              <p className="text-xs font-bold text-emerald-900">
+                {Math.trunc(Number(vitals?.bmi)) || "N/A"}
               </p>
             </div>
-          </div>
-          <div className="bg-white rounded-2xl border border-slate-100 p-3 flex items-center gap-2.5 shadow-sm">
             <div
               onClick={() => {
                 setModal(true);
                 setEditModalKey("pulse");
                 setEditModalValue(vitals?.pulse ? String(vitals.pulse) : "");
+                setEditModalUnit("bpm");
               }}
+              className="bg-white/50 backdrop-blur-lg rounded-2xl border border-white/60 shadow-lg p-3 cursor-pointer hover:bg-white/60 transition-colors text-center"
             >
-              <p className="text-[10px] text-slate-400 font-semibold tracking-wider">
+              <p className="text-[10px] text-emerald-700 font-semibold tracking-wider">
                 Pulse
               </p>
-              <p className="text-sm font-bold text-slate-800">
-                {vitals?.pulse || "N/A"} bpm
+              <p className="text-xs font-bold text-emerald-900">
+                {Math.trunc(Number(vitals?.pulse)) || "N/A"}{" "}
+                <span className="text-xs font-medium text-emerald-600">bpm</span>
               </p>
             </div>
-          </div>
-          <div className="bg-white rounded-2xl border border-slate-100 p-3 flex items-center gap-2.5 shadow-sm">
-            <div
-              onClick={() => {
-                setModal(true);
-                setEditModalKey("waist");
-                setEditModalValue(vitals?.waist ? String(vitals.waist) : "");
-              }}
-            >
-              <p className="text-[10px] text-slate-400 font-semibold tracking-wider">
-                Waist
-              </p>
-              <p className="text-sm font-bold text-slate-800">
-                {vitals?.waist || "N/A"} cm
-              </p>
-            </div>
-          </div>
-          <div className="bg-white rounded-2xl border border-slate-100 p-3 flex items-center gap-2.5 shadow-sm">
-            <div
-              onClick={() => {
-                setModal(true);
-                setEditModalKey("bp");
-                setEditModalValue(
-                  vitalsOthers?.find((others) => others.key === "bp")?.value ||
-                    "",
-                );
-              }}
-            >
-              <p className="text-[10px] text-slate-400 font-semibold tracking-wider">
-                BP
-              </p>
-              <p className="text-sm font-bold text-slate-800">
-                {
-                  vitalsOthers?.find((others) => others.key === "bp")?.value ||
-                    "N/A"
-                } bpm
-              </p>
-            </div>
-          </div>
-          {/* <button
+            {/* <div
+            onClick={() => {
+              setModal(true);
+              setEditModalKey("waist");
+              setEditModalValue(vitals?.waist ? String(vitals.waist) : "");
+              setEditModalUnit("cm");
+            }}
+            className="bg-white/20 backdrop-blur-md rounded-2xl border border-white/30 p-3 shadow-sm cursor-pointer hover:bg-white/30 transition-colors"
+          >
+            <p className="text-[10px] text-white/60 font-semibold tracking-wider">
+              Waist
+            </p>
+            <p className="text-lg font-bold text-white">
+              {vitals?.waist || "N/A"} <span className="text-sm font-medium text-white/70">cm</span>
+            </p>
+          </div> */}
+            {/* <div
+            // onClick={() => {
+            //   setModal(true);
+            //   setEditModalKey("bp");
+            //   setEditModalValue(
+            //     vitalsOthers?.find((others) => others.key === "bp")?.value ||
+            //       "",
+            //   );
+            // }}
+            className="bg-white/20 backdrop-blur-md rounded-2xl border border-white/30 p-3 shadow-sm"
+          >
+            <p className="text-slate-800 font-semibold tracking-wider text-center">
+              BP
+            </p>
+          </div> */}
+            {/* <button
             onClick={() => {
               setModal(true);
               setEditModalKey("");
               setIsEditModalKey(true);
             }}
-            className="bg-white rounded-2xl border border-dashed border-slate-200 p-3 flex items-center justify-center gap-1 shadow-sm hover:bg-slate-50 transition-colors"
+            className="bg-white/15 backdrop-blur-md rounded-2xl border border-dashed border-white/30 p-3 flex items-center justify-center gap-1 shadow-lg hover:bg-white/25 transition-colors"
           >
-            <span className="text-lg text-slate-400 font-light">+</span>
-            <span className="text-xs font-semibold text-slate-500">Add</span>
+            <span className="text-lg text-white/60 font-light">+</span>
+            <span className="text-xs font-semibold text-white/70">Add</span>
           </button> */}
+          </div>
         </div>
       </div>
 
@@ -252,8 +290,11 @@ const Header = ({ token, title, onRefresh, isRefreshing }: HeaderProps) => {
         isOpen={modal}
         onClose={() => setModal(false)}
         fieldKey={editModalKey || ""}
+        unit={editModalUnit || ""}
         fieldValue={editModalValue || ""}
-        isLoading={loading || vitalOthersLoading}
+        valueInputType="number"
+        // isLoading={loading || vitalOthersLoading}
+        isLoading={loading}
         keyEditable={isEditModalKey}
         onSave={handleUpdateVital}
       />

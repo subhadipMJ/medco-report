@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { ArrowLeft, GitCompare, Loader2, RefreshCw } from "lucide-react";
+import { useNavigateWithToken } from "../hooks/useNavigateWithToken";
 import {
   useReportCompare,
   useReportCompareDetails,
@@ -8,8 +9,6 @@ import type {
   CompareReportDetails,
   CompareReportParameter,
 } from "../types/api";
-import Header from "./Header";
-
 function parseDateDMY(dateStr: string): Date {
   const [day, month, yearShort] = dateStr.split("/");
   const fullYear = Number.parseInt(yearShort, 10) < 50
@@ -118,46 +117,38 @@ function CompareContent({
   if (!showTable) {
     return (
       <div className="space-y-4">
-        <div className="rounded-2xl border border-slate-200/80 bg-white/90 p-5 shadow-[0_8px_24px_rgba(15,23,42,0.06)]">
+        <div className="border-b border-slate-200 bg-white p-4">
           <p className="text-sm font-semibold text-slate-500 mb-3">
             Select parameters to compare across dates.
           </p>
-          <div className="flex flex-wrap gap-2">
+          <div className="space-y-2">
             {allParameterNames.map((name) => {
               const isSelected = selectedParams.includes(name);
               return (
-                <button
+                <div
                   key={name}
-                  onClick={() => onToggleParam(name)}
-                  className={`rounded-xl border px-3 py-2 text-xs font-semibold transition-all w-full ${
-                    isSelected
-                      ? "border-blue-300 bg-blue-50 text-blue-700"
-                      : "border-slate-200 bg-white text-slate-600 hover:border-slate-300"
-                  }`}
+                  className="flex items-center justify-between rounded-xl border border-slate-200 bg-white px-3 py-2.5"
                 >
-                  <span className="flex items-center gap-1.5">
-                    <span
-                      className={`inline-block h-3.5 w-3.5 rounded border ${
-                        isSelected
-                          ? "border-blue-500 bg-blue-500"
-                          : "border-slate-300"
-                      }`}
-                    >
-                      {isSelected && (
-                        <svg
-                          viewBox="0 0 14 14"
-                          className="h-3.5 w-3.5 text-white"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="2.5"
-                        >
-                          <path d="M2 7l4 4 6-6" />
-                        </svg>
-                      )}
-                    </span>
+                  <span className="text-xs font-semibold text-slate-700">
                     {name}
                   </span>
-                </button>
+                  {isSelected ? (
+                    <button
+                      onClick={() => onToggleParam(name)}
+                      className="inline-flex items-center gap-1 rounded-lg bg-green-50 px-2.5 py-1.5 text-[10px] font-bold text-green-700 border border-green-200 hover:bg-green-100 transition-colors"
+                    >
+                      Added
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => onToggleParam(name)}
+                      className="inline-flex items-center gap-1 rounded-lg bg-green-50 px-2.5 py-1.5 text-[10px] font-bold text-green-700 border border-green-200 hover:bg-green-100 transition-colors"
+                    >
+                      <GitCompare size={12} />
+                      Add
+                    </button>
+                  )}
+                </div>
               );
             })}
           </div>
@@ -173,10 +164,10 @@ function CompareContent({
         </div>
 
         {selectedParams.length > 0 && (
-          <div className="flex justify-center">
+          <div className="flex justify-center p-4">
             <button
               onClick={onCompare}
-              className="inline-flex items-center gap-2 rounded-xl bg-slate-900 px-6 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-slate-800 transition-colors"
+              className="inline-flex items-center gap-2 rounded-xl bg-slate-900 px-6 py-2.5 text-sm font-semibold text-white hover:bg-slate-800 transition-colors"
             >
               <GitCompare size={16} />
               Compare ({selectedParams.length})
@@ -209,7 +200,7 @@ function CompareContent({
         >
           <ArrowLeft size={14} /> Back to selection
         </button>
-        <div className="bg-slate-50 border-2 border-slate-200 rounded-3xl p-6 text-center">
+        <div className="border-b border-slate-200 bg-white p-4 text-center">
           <p className="text-sm font-bold text-red-600">{detailsError}</p>
           <button
             onClick={refetchDetails}
@@ -224,7 +215,7 @@ function CompareContent({
 
   if (!tableData || tableData.dates.length === 0) {
     return (
-      <div className="bg-slate-50 border-2 border-slate-200 rounded-3xl p-6 text-center">
+      <div className="border-b border-slate-200 bg-white p-4 text-center">
         <p className="text-sm font-bold text-slate-600">
           No dates available for selected parameters.
         </p>
@@ -243,7 +234,7 @@ function CompareContent({
         <ArrowLeft size={14} /> Back to selection
       </button>
 
-      <div className="overflow-x-auto rounded-2xl border border-slate-200/80 bg-white/90 shadow-[0_8px_24px_rgba(15,23,42,0.06)]">
+      <div className="overflow-x-auto border-b border-slate-200 bg-white">
         <table className="w-full text-left text-xs">
           <thead>
             <tr className="border-b border-slate-200 bg-slate-50/80">
@@ -316,6 +307,7 @@ interface CompareProps {
 }
 
 export default function Compare({ token }: CompareProps) {
+  const navigate = useNavigateWithToken();
   const [selectedParams, setSelectedParams] = useState<string[]>([]);
   const [showTable, setShowTable] = useState(false);
   const [page, setPage] = useState(1);
@@ -325,7 +317,7 @@ export default function Compare({ token }: CompareProps) {
     loading: paramsLoading,
     error: paramsError,
     refetch: refetchParams,
-  } = useReportCompare(token || null, page);
+  } = useReportCompare(token || null, { page });
 
   const handleToggleParam = (name: string) => {
     setSelectedParams((prev) =>
@@ -346,15 +338,15 @@ export default function Compare({ token }: CompareProps) {
     setPage((p) => p + 1);
   };
 
-  const handleRefresh = () => {
-    setPage(1);
-    refetchParams();
-  };
+  // const handleRefresh = () => {
+  //   setPage(1);
+  //   refetchParams();
+  // };
 
   if (paramsLoading && page === 1) {
     return (
-      <div className="min-h-screen bg-slate-50">
-        <div className="max-w-4xl mx-auto bg-white min-h-screen pb-24">
+      <div className="min-h-screen bg-slate-50 font-sans">
+        <div className="max-w-[1440px] mx-auto bg-white min-h-screen pb-24">
           <div className="flex flex-col items-center justify-center py-20 gap-4">
             <Loader2 size={32} className="animate-spin text-blue-500" />
             <p className="text-sm font-semibold text-slate-500">
@@ -368,8 +360,8 @@ export default function Compare({ token }: CompareProps) {
 
   if (paramsError) {
     return (
-      <div className="min-h-screen bg-slate-50">
-        <div className="max-w-4xl mx-auto bg-white min-h-screen pb-24">
+      <div className="min-h-screen bg-slate-50 font-sans">
+        <div className="max-w-[1440px] mx-auto bg-white min-h-screen pb-24">
           <div className="flex flex-col items-center justify-center py-20 gap-3 px-6">
             <p className="text-sm font-semibold text-red-600">{paramsError}</p>
             <button
@@ -386,18 +378,27 @@ export default function Compare({ token }: CompareProps) {
 
   return (
     <div className="min-h-screen bg-slate-50 font-sans">
-      <div className="max-w-4xl mx-auto bg-white min-h-screen pb-24">
-        <Header
-          token={token}
-          title="Compare"
-          onRefresh={handleRefresh}
-          isRefreshing={paramsLoading}
-        />
-
+      <div className="max-w-[1440px] mx-auto bg-slate-50 min-h-screen pb-24">
         <div className="px-6 pb-24 relative">
+          <div className="flex items-center justify-between pt-6 pb-4">
+            <button
+              onClick={() => navigate("/")}
+              className="w-9 h-9 rounded-xl bg-white border border-slate-200 flex items-center justify-center hover:bg-slate-50 transition-colors"
+            >
+              <ArrowLeft size={16} className="text-slate-600" />
+            </button>
+            <p className="text-lg font-black text-slate-900">Compare</p>
+            <button
+              onClick={() => { setPage(1); refetchParams(); }}
+              className="w-9 h-9 rounded-xl bg-white border border-slate-200 flex items-center justify-center hover:bg-slate-50 transition-colors"
+              title="Refresh"
+            >
+              <RefreshCw size={16} className={paramsLoading ? "animate-spin" : ""} />
+            </button>
+          </div>
           <div className="animate-fade-in space-y-6">
             {params.length === 0 && !paramsLoading ? (
-              <div className="bg-slate-50 border-2 border-slate-200 rounded-3xl p-6 text-center">
+              <div className="border-b border-slate-200 bg-white p-4 text-center">
                 <p className="text-sm font-bold text-slate-600">
                   No data to compare.
                 </p>

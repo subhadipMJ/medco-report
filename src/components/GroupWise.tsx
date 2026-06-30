@@ -8,11 +8,11 @@ import {
   Loader2,
   ChevronDown,
   ChevronUp,
+  ArrowLeft,
 } from "lucide-react";
+import { useNavigateWithToken } from "../hooks/useNavigateWithToken";
 import { useLabReports } from "../hooks/useLabReports";
 import type { GroupedByTestType } from "../types/api";
-import Header from "./Header";
-
 const testTypeIcon = (keyword: string) => {
   switch (keyword) {
     case "blood_test":
@@ -50,11 +50,11 @@ function GroupWiseView({
     );
   }
   return (
-    <div className="space-y-4">
+    <div>
       {groupedReports.map((gt) => (
         <div
           key={gt.testType.id}
-          className="rounded-[24px] border border-slate-200/80 bg-white/90 p-4 shadow-[0_8px_24px_rgba(15,23,42,0.06)]"
+          className="border-b border-slate-200 bg-white p-4"
         >
           <div className="flex items-center gap-3 mb-3">
             <div className="w-10 h-10 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-center text-slate-600">
@@ -76,7 +76,7 @@ function GroupWiseView({
                   onClick={() =>
                     setExpanded(expanded === g.groupId ? null : g.groupId)
                   }
-                  className="w-full flex items-center justify-between rounded-xl border border-slate-200/70 bg-slate-50/60 px-3 py-2.5 text-left"
+                  className="w-full flex items-center justify-between border-b border-slate-100 px-3 py-2.5 text-left hover:bg-slate-50 transition-colors"
                 >
                   <span className="text-sm font-semibold text-slate-800">
                     {g.groupName}
@@ -88,11 +88,11 @@ function GroupWiseView({
                   )}
                 </button>
                 {expanded === g.groupId && (
-                  <div className="mt-2 space-y-2 px-1">
+                  <div className="mt-2 space-y-2">
                     {g.parameters.map((p) => (
                       <div
                         key={p.id}
-                        className="flex items-center justify-between rounded-xl border border-slate-100 bg-white px-3 py-2"
+                        className="flex items-center justify-between px-3 py-2"
                       >
                         <div>
                           <p className="text-sm font-medium text-slate-800">
@@ -126,6 +126,7 @@ interface GroupWiseProps {
 }
 
 export default function GroupWise({ token }: GroupWiseProps) {
+  const navigate = useNavigateWithToken();
   const { data: groupedReports, loading, error, refetch } = useLabReports(
     token || null,
     {},
@@ -133,8 +134,8 @@ export default function GroupWise({ token }: GroupWiseProps) {
 
   if (loading && groupedReports.length === 0) {
     return (
-      <div className="min-h-screen bg-slate-50">
-        <div className="max-w-4xl mx-auto bg-white min-h-screen pb-24">
+      <div className="min-h-screen bg-slate-50 font-sans">
+        <div className="max-w-[1440px] mx-auto bg-white min-h-screen pb-24">
           <div className="flex flex-col items-center justify-center py-20 gap-4">
             <Loader2 size={32} className="animate-spin text-blue-500" />
             <p className="text-sm font-semibold text-slate-500">Loading reports...</p>
@@ -146,8 +147,8 @@ export default function GroupWise({ token }: GroupWiseProps) {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-slate-50">
-        <div className="max-w-4xl mx-auto bg-white min-h-screen pb-24">
+      <div className="min-h-screen bg-slate-50 font-sans">
+        <div className="max-w-[1440px] mx-auto bg-white min-h-screen pb-24">
           <div className="flex flex-col items-center justify-center py-20 gap-3 px-6">
             <p className="text-sm font-semibold text-red-600">{error}</p>
             <button
@@ -164,15 +165,24 @@ export default function GroupWise({ token }: GroupWiseProps) {
 
   return (
     <div className="min-h-screen bg-slate-50 font-sans">
-      <div className="max-w-4xl mx-auto bg-white min-h-screen pb-24">
-        <Header
-          token={token}
-          title="Group Wise"
-          onRefresh={refetch}
-          isRefreshing={loading}
-        />
-
+      <div className="max-w-[1440px] mx-auto bg-slate-50 min-h-screen pb-24">
         <div className="px-6 pb-24 relative">
+          <div className="flex items-center justify-between pt-6 pb-4">
+            <button
+              onClick={() => navigate("/")}
+              className="w-9 h-9 rounded-xl bg-white border border-slate-200 flex items-center justify-center hover:bg-slate-50 transition-colors"
+            >
+              <ArrowLeft size={16} className="text-slate-600" />
+            </button>
+            <p className="text-lg font-black text-slate-900">Group Wise</p>
+            <button
+              onClick={refetch}
+              className="w-9 h-9 rounded-xl bg-white border border-slate-200 flex items-center justify-center hover:bg-slate-50 transition-colors"
+              title="Refresh"
+            >
+              <RefreshCw size={16} className={loading ? "animate-spin" : ""} />
+            </button>
+          </div>
           <div className="animate-fade-in space-y-6">
             <GroupWiseView groupedReports={groupedReports} />
           </div>

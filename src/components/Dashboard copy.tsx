@@ -62,7 +62,7 @@ const Dashboard = ({ token }: DashboardProps) => {
 
   return (
     <div className="min-h-screen bg-slate-50 font-sans">
-      <div className="max-w-4xl mx-auto bg-white min-h-screen pb-24">
+      <div className="max-w-[1440px] mx-auto bg-white min-h-screen pb-24">
         
         {/* Patient Header - Light Premium Mode */}
         <div className="px-6 pt-8 pb-6 relative z-10 bg-white">

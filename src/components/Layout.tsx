@@ -5,7 +5,8 @@ function GlobalBottomNav() {
   const location = useLocation();
   const navigate = useNavigate();
   const searchParams = new URLSearchParams(location.search);
-  const token = localStorage.getItem("token") || searchParams.get("token") || "";
+  const token =
+    localStorage.getItem("token") || searchParams.get("token") || "";
 
   const activeTab =
     location.pathname === "/" || location.pathname.startsWith("/report")
@@ -14,7 +15,8 @@ function GlobalBottomNav() {
         ? "groupWise"
         : location.pathname === "/compare"
           ? "compare"
-          : location.pathname === "/prescription"
+          : location.pathname === "/prescription" ||
+              location.pathname === "/add-prescription"
             ? "prescription"
             : location.pathname === "/analaytics"
               ? "analysis"
@@ -50,8 +52,13 @@ function GlobalBottomNav() {
               : "text-slate-400 hover:text-slate-600"
           }`}
         >
-          <LayoutGrid size={20} strokeWidth={activeTab === "groupWise" ? 2.5 : 2} />
-          <span className="text-[10px] font-bold tracking-wide">Group Wise</span>
+          <LayoutGrid
+            size={20}
+            strokeWidth={activeTab === "groupWise" ? 2.5 : 2}
+          />
+          <span className="text-[10px] font-bold tracking-wide">
+            Group Wise
+          </span>
         </button>
         <button
           onClick={() => goTo("/compare")}
@@ -61,7 +68,10 @@ function GlobalBottomNav() {
               : "text-slate-400 hover:text-slate-600"
           }`}
         >
-          <GitCompare size={20} strokeWidth={activeTab === "compare" ? 2.5 : 2} />
+          <GitCompare
+            size={20}
+            strokeWidth={activeTab === "compare" ? 2.5 : 2}
+          />
           <span className="text-[10px] font-bold tracking-wide">Compare</span>
         </button>
         <button
@@ -72,8 +82,13 @@ function GlobalBottomNav() {
               : "text-slate-400 hover:text-slate-600"
           }`}
         >
-          <Pill size={20} strokeWidth={activeTab === "prescription" ? 2.5 : 2} />
-          <span className="text-[10px] font-bold tracking-wide">My Prescription</span>
+          <Pill
+            size={20}
+            strokeWidth={activeTab === "prescription" ? 2.5 : 2}
+          />
+          <span className="text-[10px] font-bold tracking-wide">
+            My Prescription
+          </span>
         </button>
         {/* <button
           onClick={() => goTo("/profile")}
@@ -92,7 +107,10 @@ function GlobalBottomNav() {
 }
 
 export default function Layout() {
-  const isNavbarShow = useLocation().pathname === "/select-test" || useLocation().pathname === "/add-report" || useLocation().pathname === "/prescription-view";
+  const isNavbarShow =
+    useLocation().pathname === "/select-test" ||
+    useLocation().pathname === "/add-report" ||
+    useLocation().pathname === "/prescription-view";
   return (
     <>
       <Outlet />

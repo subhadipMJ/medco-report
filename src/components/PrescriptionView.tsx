@@ -1,22 +1,22 @@
 import { useEffect, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useLocation } from "react-router-dom";
 import { ArrowLeft, X, Share2 } from "lucide-react";
 import { useNavigateWithToken } from "../hooks/useNavigateWithToken";
 
 export default function PrescriptionView() {
-  const [searchParams] = useSearchParams();
+  const location = useLocation();
   const navigate = useNavigateWithToken();
-  const url = searchParams.get("url") || "";
+  const url = (location.state as { url?: string } | undefined)?.url || "";
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (!url) {
-      navigate(-1);
+      navigate("/prescription");
     }
   }, [url, navigate]);
 
   const handleBack = () => {
-    navigate(-1);
+    navigate("/prescription");
   };
 
   const handleShare = async () => {
@@ -96,7 +96,7 @@ export default function PrescriptionView() {
         </div>
       </div>
 
-      <div className="flex-1 bg-slate-100 overflow-auto">
+      <div className="flex-1 bg-slate-100 overflow-auto relative">
         {isPdf ? (
           <iframe
             src={url}

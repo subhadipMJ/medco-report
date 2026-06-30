@@ -6,8 +6,11 @@ interface VitalsModalProps {
   onClose: () => void;
   fieldKey: string;
   fieldValue: string;
+  unit?: string;
   isLoading?: boolean;
   keyEditable?: boolean;
+  keyInputType?: string;
+  valueInputType?: string;
   onSave: (key: string, value: string) => void;
 }
 
@@ -16,20 +19,36 @@ export default function VitalsModal({
   onClose,
   fieldKey,
   fieldValue,
+  unit,
   isLoading = false,
   keyEditable = false,
+  keyInputType = "text",
+  valueInputType = "text",
   onSave,
 }: VitalsModalProps) {
   const [value, setValue] = useState("");
   const [editableKey, setEditableKey] = useState("");
+  const [feet, setFeet] = useState("");
+  const [inches, setInches] = useState("");
 
   useEffect(() => {
     if (isOpen) {
-      setValue(fieldValue);
+      if (fieldKey === "height") {
+        const match = fieldValue.match(/([\d.]+)\s*ft\s*([\d.]+)\s*in/);
+        const ft = match ? match[1] : "";
+        const inc = match ? match[2] : "";
+        setFeet(ft);
+        setInches(inc);
+        setValue(fieldValue);
+      } else {
+        setValue(Math.trunc(Number(fieldValue)).toString());
+      }
       setEditableKey(fieldKey);
     } else {
       setValue("");
       setEditableKey("");
+      setFeet("");
+      setInches("");
     }
   }, [isOpen, fieldValue, fieldKey]);
 
@@ -37,7 +56,14 @@ export default function VitalsModal({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onSave(keyEditable ? editableKey : fieldKey, value);
+    if (fieldKey === "height") {
+      const ft = feet ? Number(feet) : 0;
+      const inc = inches ? Number(inches) : 0;
+      const formatted = `${ft} ft ${inc} in`;
+      onSave(keyEditable ? editableKey : fieldKey, formatted);
+    } else {
+      onSave(keyEditable ? editableKey : fieldKey, value);
+    }
   };
 
   const label = fieldKey.charAt(0).toUpperCase() + fieldKey.slice(1);
@@ -68,7 +94,7 @@ export default function VitalsModal({
                 Field Name
               </label>
               <input
-                type="text"
+                type={keyInputType}
                 value={editableKey}
                 onChange={(e) => setEditableKey(e.target.value)}
                 placeholder="e.g. weight, height, bmi"
@@ -80,14 +106,48 @@ export default function VitalsModal({
           <div>
             <label className="block text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-1">
               {keyEditable ? "Value" : label}
+              {unit && fieldKey !== "height" && <span className="ml-1 text-slate-400 normal-case">({unit})</span>}
             </label>
-            <input
-              type="text"
-              value={value}
-              onChange={(e) => setValue(e.target.value)}
-              className="w-full h-10 rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm font-medium text-slate-800 outline-none focus:border-blue-400 focus:bg-white transition-colors"
-              autoFocus={!keyEditable}
-            />
+            {fieldKey === "height" ? (
+              <div className="flex items-center gap-3">
+                <div className="flex-1">
+                  <label className="block text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1.5">
+                    Feet
+                  </label>
+                  <input
+                    type="text"
+                    inputMode="decimal"
+                    value={feet}
+                    onChange={(e) => setFeet(e.target.value)}
+                    placeholder="0"
+                    className="w-full h-9 rounded-lg border border-slate-200 bg-slate-50 px-2.5 text-sm font-medium text-slate-800 outline-none focus:border-blue-400 focus:bg-white transition-colors"
+                    autoFocus={!keyEditable}
+                  />
+                </div>
+                <div className="flex-1">
+                  <label className="block text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1.5">
+                    Inches
+                  </label>
+                  <input
+                    type="text"
+                    inputMode="decimal"
+                    value={inches}
+                    onChange={(e) => setInches(e.target.value)}
+                    placeholder="0"
+                    className="w-full h-9 rounded-lg border border-slate-200 bg-slate-50 px-2.5 text-sm font-medium text-slate-800 outline-none focus:border-blue-400 focus:bg-white transition-colors"
+                  />
+                </div>
+              </div>
+            ) : (
+              <input
+                type={valueInputType === "number" ? "text" : valueInputType}
+                inputMode={valueInputType === "number" ? "decimal" : undefined}
+                value={value}
+                onChange={(e) => setValue(e.target.value)}
+                className="w-full h-10 rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm font-medium text-slate-800 outline-none focus:border-blue-400 focus:bg-white transition-colors"
+                autoFocus={!keyEditable}
+              />
+            )}
           </div>
           <button
             type="submit"

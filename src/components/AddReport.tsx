@@ -30,6 +30,16 @@ interface AddReportProps {
   token: string;
 }
 
+function formatDateDMY(dateStr: string): string {
+  const d = new Date(dateStr);
+  const formattedDate = d.toLocaleDateString("en-GB", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
+  return formattedDate;
+}
+
 function CustomDropdown({
   icon,
   options,
@@ -135,7 +145,8 @@ const AddReport = ({ token }: AddReportProps) => {
     tests?: TestEntry[];
   } | null;
 
-  const [date, setDate] = useState(preserved?.date || "");
+  const today = new Date().toISOString().split("T")[0];
+  const [date, setDate] = useState(preserved?.date || today);
   const [doctor, setDoctor] = useState<{ value: string; label: string } | null>(
     preserved?.doctor
       ? typeof preserved.doctor === "string"
@@ -272,6 +283,16 @@ const AddReport = ({ token }: AddReportProps) => {
     };
   }, []);
 
+  const handleAddReport = () => {
+    // TODO: Implement add report functionality
+    if (window.Flutter?.postMessage) {
+      console.log("Sending message to Flutter:");
+      window.Flutter.postMessage("open_add_reports");
+    } else {
+      console.log("Not running inside Flutter WebView");
+    }
+  };
+
   const handleAddDoctor = async (name: string) => {
     if (!name || !name.trim() || !token) return;
     try {
@@ -297,6 +318,12 @@ const AddReport = ({ token }: AddReportProps) => {
   };
 
   const handleFinalSubmit = async () => {
+    const emptyTest = tests.find((t) => !t.value || !t.value.trim());
+    if (emptyTest) {
+      alert(`Please enter a value for ${emptyTest.parameter_name}`);
+      return;
+    }
+
     const request: AddLabReportRequest = {
       date_of_test: date,
       lab_name: lab?.label || "",
@@ -310,8 +337,6 @@ const AddReport = ({ token }: AddReportProps) => {
       })),
     };
 
-    // console.log("Add report request:", request);
-
     try {
       await addLabReportSubmit(request);
       reset();
@@ -324,310 +349,321 @@ const AddReport = ({ token }: AddReportProps) => {
   // console.log(tests);
 
   return (
-    <div className="min-h-screen bg-slate-50 pb-24">
-      {/* Header */}
-      {step === 1 ? (
-        <div className="flex items-center justify-between px-6 pt-8 pb-4">
-          <div className="flex items-center gap-3">
-            <p className="text-xl font-black text-slate-900">Add Report</p>
-          </div>
-          <button
-            onClick={handleClose}
-            className="w-10 h-10 rounded-2xl bg-white border border-slate-100 flex items-center justify-center hover:bg-slate-100 transition-colors"
-          >
-            <X size={18} className="text-slate-600" />
-          </button>
-        </div>
-      ) : (
-        <div className="bg-gradient-to-br from-violet-50 via-fuchsia-50 to-rose-50 px-6 pt-8 pb-6 rounded-b-[2rem] mb-6">
-          <div className="flex items-start justify-between">
-            <button
-              onClick={() => setStep(1)}
-              className="w-9 h-9 rounded-xl bg-white/80 backdrop-blur border border-white/50 flex items-center justify-center hover:bg-white transition-colors"
-            >
-              <ArrowLeft size={16} className="text-slate-700" />
-            </button>
+    <div className="min-h-screen bg-slate-50 font-sans">
+      <div className="max-w-[1440px] mx-auto bg-slate-50 min-h-screen pb-24">
+        {/* Header */}
+        {step === 1 ? (
+          <div className="flex items-center justify-between px-6 pt-8 pb-4">
+            <div className="flex items-center gap-3">
+              <p className="text-xl font-black text-slate-900">Add Report</p>
+            </div>
             <button
               onClick={handleClose}
-              className="w-9 h-9 rounded-xl bg-white/80 backdrop-blur border border-white/50 flex items-center justify-center hover:bg-white transition-colors"
+              className="w-10 h-10 rounded-2xl bg-white border border-slate-100 flex items-center justify-center hover:bg-slate-100 transition-colors"
             >
-              <X size={16} className="text-slate-700" />
+              <X size={18} className="text-slate-600" />
             </button>
           </div>
-          <div className="mt-4">
-            <div className="flex justify-between items-center">
-              <p className="text-2xl font-black text-slate-900">
+        ) : (
+          <div className="bg-gradient-to-br from-emerald-200/80 via-green-100/70 to-teal-200/80 backdrop-blur-md px-6 pt-8 pb-4 rounded-b-[2.5rem]">
+            <div className="flex items-start justify-between">
+              <button
+                onClick={() => setStep(1)}
+                className="w-10 h-10 rounded-xl bg-white/20 backdrop-blur-sm border border-white/30 flex items-center justify-center hover:bg-white/30 transition-colors"
+              >
+                <ArrowLeft size={18} className="text-emerald-800" />
+              </button>
+              <button
+                onClick={handleClose}
+                className="w-10 h-10 rounded-xl bg-white/20 backdrop-blur-sm border border-white/30 flex items-center justify-center hover:bg-white/30 transition-colors"
+              >
+                <X size={18} className="text-emerald-800" />
+              </button>
+            </div>
+            <div className="mt-5">
+              <p className="text-[10px] text-emerald-700/60 font-semibold tracking-widest uppercase">
+                {lab?.label}
+              </p>
+              <p className="text-2xl font-black text-emerald-900 mt-1 tracking-tight">
                 Dr. {doctor?.label}
               </p>
-              <p className="text-xl font-medium text-slate-500 mb-1">
-                <CalendarDays size={18} className="inline mr-1" />
-                {date}
-              </p>
-            </div>
-            <p className="text-xl font-semibold text-slate-600 mt-1">
-              <span className="text-slate-400">Laboratory Name: </span>
-              {lab?.label}
-            </p>
-          </div>
-        </div>
-      )}
-
-      {/* Step 1 */}
-      {step === 1 && (
-        <div className="px-6 pb-8 space-y-4">
-          {/* Date */}
-          <div>
-            <label className="block text-xs font-medium text-slate-400 mb-1.5">
-              Date
-            </label>
-            <div className="relative">
-              <input
-                type="date"
-                id="date-picker"
-                value={date}
-                onChange={(e) => setDate(e.target.value)}
-                className="sr-only"
-              />
-              <button
-                type="button"
-                onClick={() =>
-                  (
-                    document.getElementById(
-                      "date-picker",
-                    ) as HTMLInputElement | null
-                  )?.showPicker?.()
-                }
-                className="w-full h-14 rounded-2xl border border-slate-200 bg-white pl-4 pr-12 text-lg font-bold text-slate-800 outline-none focus:border-blue-400 focus:bg-white transition-colors flex items-center text-left"
-              >
-                {date
-                  ? new Date(date).toLocaleDateString("en-GB")
-                  : "DD/MM/YYYY"}
-              </button>
-              <CalendarDays
-                size={20}
-                className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"
-              />
-            </div>
-          </div>
-
-          {/* Doctor */}
-          <div>
-            <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">
-              Doctor Name
-            </label>
-            <div className="flex items-center gap-2 mt-2">
-              <CustomDropdown
-                icon={<User size={16} />}
-                options={doctorOptions || []}
-                value={doctor?.value || ""}
-                onChange={setDoctor}
-                placeholder="Select doctor"
-                direction="down"
-                loading={loading}
-                error={error}
-              />
-              <button
-                onClick={() => {
-                  refetch();
-                  setDoctor(null);
-                }}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white border border-slate-100 text-xs font-semibold text-slate-600 hover:bg-slate-100 transition-colors"
-              >
-                <RefreshCw size={12} />
-              </button>
-              <button
-                onClick={() => setShowAddDoctor(true)}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-green-500 border border-slate-100 text-xs font-semibold text-slate-600 hover:bg-slate-100 transition-colors"
-              >
-                <Plus size={12} className="text-white" />
-              </button>
-            </div>
-            {showAddDoctor && (
-              <div className="fixed inset-0 z-[110] flex items-center justify-center px-6">
-                <div
-                  className="absolute inset-0 bg-black/40 backdrop-blur-sm"
-                  onClick={() => setShowAddDoctor(false)}
-                />
-                <div className="relative w-full max-w-sm bg-white rounded-3xl shadow-lg p-6 space-y-4">
-                  <div className="flex items-center justify-between">
-                    <p className="text-xl font-black text-slate-900">
-                      Add Doctor
-                    </p>
-                    <button
-                      onClick={() => setShowAddDoctor(false)}
-                      className="w-9 h-9 rounded-xl bg-white border border-slate-100 flex items-center justify-center"
-                    >
-                      <X size={16} className="text-slate-600" />
-                    </button>
-                  </div>
-                  <input
-                    autoFocus
-                    type="text"
-                    value={newDoctor}
-                    onChange={(e) => setNewDoctor(e.target.value)}
-                    placeholder="Doctor name"
-                    className="w-full h-14 rounded-2xl border border-slate-200 bg-white px-3 text-base font-semibold text-slate-800 outline-none focus:border-blue-400 focus:bg-white transition-colors"
-                  />
-                  <button
-                    disabled={addDoctorLoading}
-                    onClick={() => {
-                      const name = newDoctor.trim();
-                      if (!name) return;
-                      handleAddDoctor(name);
-                    }}
-                    className="w-full h-14 rounded-2xl bg-slate-900 text-white text-sm font-bold hover:bg-slate-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                  >
-                    {addDoctorLoading && (
-                      <RefreshCw size={16} className="animate-spin" />
-                    )}
-                    {addDoctorLoading ? "Adding..." : "Add"}
-                  </button>
-                </div>
+              <div className="flex items-center gap-2 mt-2 text-emerald-600">
+                <CalendarDays size={14} />
+                <span className="text-sm font-medium">{formatDateDMY(date)}</span>
               </div>
-            )}
+            </div>
           </div>
+        )}
 
-          {/* Lab */}
-          <div>
-            <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">
-              Lab Name
-            </label>
-            <div className="flex items-center gap-2 mt-2">
-              <CustomDropdown
-                icon={<Building2 size={16} />}
-                options={labOptions || []}
-                value={lab?.value || ""}
-                onChange={setLab}
-                placeholder="Select lab"
-                direction="down"
-                loading={labsLoading}
-                error={labsError}
-              />
+        {/* Step 1 */}
+        {step === 1 && (
+          <div className="px-6 pb-8 space-y-4">
+            {/* add report group wise button */}
+            <div className="flex justify-end">
               <button
-                onClick={() => {
-                  labsRefetch();
-                  setLab(null);
-                }}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white border border-slate-100 text-xs font-semibold text-slate-600 hover:bg-slate-100 transition-colors"
+                onClick={handleAddReport}
+                className="flex items-center justify-center gap-2 h-9 px-4 rounded-xl bg-slate-900 text-white text-xs font-bold hover:bg-slate-800 transition-colors shadow-sm"
               >
-                <RefreshCw size={12} />
-              </button>
-              <button
-                onClick={() => setShowAddLab((v) => !v)}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-green-500 border border-slate-100 text-xs font-semibold text-slate-600 hover:bg-slate-100 transition-colors"
-              >
-                <Plus size={12} className="text-white" />
+                <Plus size={16} />
+                <span>Add Report Group Wise</span>
               </button>
             </div>
-            {showAddLab && (
-              <div className="fixed inset-0 z-[110] flex items-center justify-center px-6">
-                <div
-                  className="absolute inset-0 bg-black/40 backdrop-blur-sm"
-                  onClick={() => setShowAddLab(false)}
+
+            {/* Date */}
+            <div>
+              <label className="block text-xs font-medium text-slate-400 mb-1.5">
+                Date
+              </label>
+              <div className="relative">
+                <input
+                  type="date"
+                  id="date-picker"
+                  value={date}
+                  onChange={(e) => setDate(e.target.value)}
+                  className="sr-only"
                 />
-                <div className="relative w-full max-w-sm bg-white rounded-3xl shadow-lg p-6 space-y-4">
-                  <div className="flex items-center justify-between">
-                    <p className="text-xl font-black text-slate-900">Add Lab</p>
-                    <button
-                      onClick={() => setShowAddLab(false)}
-                      className="w-9 h-9 rounded-xl bg-white border border-slate-100 flex items-center justify-center"
-                    >
-                      <X size={16} className="text-slate-600" />
-                    </button>
-                  </div>
-                  <input
-                    autoFocus
-                    type="text"
-                    value={newLab}
-                    onChange={(e) => setNewLab(e.target.value)}
-                    placeholder="Lab name"
-                    className="w-full h-14 rounded-2xl border border-slate-200 bg-white px-3 text-base font-semibold text-slate-800 outline-none focus:border-blue-400 focus:bg-white transition-colors"
-                  />
-                  <button
-                    disabled={addLabLoading}
-                    onClick={() => {
-                      const name = newLab.trim();
-                      if (!name) return;
-                      handleAddLab(name);
-                    }}
-                    className="w-full h-14 rounded-2xl bg-slate-900 text-white text-sm font-bold hover:bg-slate-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                  >
-                    {addLabLoading && (
-                      <RefreshCw size={16} className="animate-spin" />
-                    )}
-                    {addLabLoading ? "Adding..." : "Add"}
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* Step 2 */}
-      {step === 2 && (
-        <div className="px-6 pb-8 space-y-4">
-          {/* Add Test Button */}
-          <div className="flex justify-end">
-            <button
-              onClick={() =>
-                navigate("/select-test", {
-                  state: { date, doctor, lab, tests },
-                })
-              }
-              className="h-12 rounded-xl border border-dashed border-slate-300 bg-green-500 text-white text-xl font-bold flex items-center justify-center gap-2 px-5 hover:bg-white transition-colors"
-            >
-              <Plus size={16} />
-              Add Report
-            </button>
-          </div>
-
-          {/* Selected Tests with Values */}
-          {tests.length > 0 && (
-            <div className="space-y-3">
-              <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">
-                Enter Values
-              </p>
-              {tests.map((test) => (
-                <div
-                  key={test.parameter_id}
-                  className="flex-1 items-start gap-3 bg-white border border-slate-200 rounded-2xl p-3"
+                <button
+                  type="button"
+                  onClick={() =>
+                    (
+                      document.getElementById(
+                        "date-picker",
+                      ) as HTMLInputElement | null
+                    )?.showPicker?.()
+                  }
+                  className="w-full h-14 rounded-2xl border border-slate-200 bg-white pl-4 pr-12 text-lg font-bold text-slate-800 outline-none focus:border-blue-400 focus:bg-white transition-colors flex items-center text-left"
                 >
-                  {/* <FlaskConical
+                  {date
+                    ? new Date(date).toLocaleDateString("en-GB")
+                    : "DD/MM/YYYY"}
+                </button>
+                <CalendarDays
+                  size={20}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"
+                />
+              </div>
+            </div>
+
+            {/* Doctor */}
+            <div>
+              <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">
+                Doctor Name
+              </label>
+              <div className="flex items-center gap-2 mt-2">
+                <CustomDropdown
+                  icon={<User size={16} />}
+                  options={doctorOptions || []}
+                  value={doctor?.value || ""}
+                  onChange={setDoctor}
+                  placeholder="Select doctor"
+                  direction="down"
+                  loading={loading}
+                  error={error}
+                />
+                <button
+                  onClick={() => {
+                    refetch();
+                    setDoctor(null);
+                  }}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white border border-slate-100 text-xs font-semibold text-slate-600 hover:bg-slate-100 transition-colors"
+                >
+                  <RefreshCw size={12} />
+                </button>
+                <button
+                  onClick={() => setShowAddDoctor(true)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-green-500 border border-slate-100 text-xs font-semibold text-slate-600 hover:bg-slate-100 transition-colors"
+                >
+                  <Plus size={12} className="text-white" />
+                </button>
+              </div>
+              {showAddDoctor && (
+                <div className="fixed inset-0 z-[110] flex items-center justify-center px-6">
+                  <div
+                    className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+                    onClick={() => setShowAddDoctor(false)}
+                  />
+                  <div className="relative w-full max-w-sm bg-white rounded-3xl shadow-lg p-6 space-y-4">
+                    <div className="flex items-center justify-between">
+                      <p className="text-xl font-black text-slate-900">
+                        Add Doctor
+                      </p>
+                      <button
+                        onClick={() => setShowAddDoctor(false)}
+                        className="w-9 h-9 rounded-xl bg-white border border-slate-100 flex items-center justify-center"
+                      >
+                        <X size={16} className="text-slate-600" />
+                      </button>
+                    </div>
+                    <input
+                      autoFocus
+                      type="text"
+                      value={newDoctor}
+                      onChange={(e) => setNewDoctor(e.target.value)}
+                      placeholder="Doctor name"
+                      className="w-full h-14 rounded-2xl border border-slate-200 bg-white px-3 text-base font-semibold text-slate-800 outline-none focus:border-blue-400 focus:bg-white transition-colors"
+                    />
+                    <button
+                      disabled={addDoctorLoading}
+                      onClick={() => {
+                        const name = newDoctor.trim();
+                        if (!name) return;
+                        handleAddDoctor(name);
+                      }}
+                      className="w-full h-14 rounded-2xl bg-slate-900 text-white text-sm font-bold hover:bg-slate-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                    >
+                      {addDoctorLoading && (
+                        <RefreshCw size={16} className="animate-spin" />
+                      )}
+                      {addDoctorLoading ? "Adding..." : "Add"}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Lab */}
+            <div>
+              <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">
+                Lab Name
+              </label>
+              <div className="flex items-center gap-2 mt-2">
+                <CustomDropdown
+                  icon={<Building2 size={16} />}
+                  options={labOptions || []}
+                  value={lab?.value || ""}
+                  onChange={setLab}
+                  placeholder="Select lab"
+                  direction="down"
+                  loading={labsLoading}
+                  error={labsError}
+                />
+                <button
+                  onClick={() => {
+                    labsRefetch();
+                    setLab(null);
+                  }}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white border border-slate-100 text-xs font-semibold text-slate-600 hover:bg-slate-100 transition-colors"
+                >
+                  <RefreshCw size={12} />
+                </button>
+                <button
+                  onClick={() => setShowAddLab((v) => !v)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-green-500 border border-slate-100 text-xs font-semibold text-slate-600 hover:bg-slate-100 transition-colors"
+                >
+                  <Plus size={12} className="text-white" />
+                </button>
+              </div>
+              {showAddLab && (
+                <div className="fixed inset-0 z-[110] flex items-center justify-center px-6">
+                  <div
+                    className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+                    onClick={() => setShowAddLab(false)}
+                  />
+                  <div className="relative w-full max-w-sm bg-white rounded-3xl shadow-lg p-6 space-y-4">
+                    <div className="flex items-center justify-between">
+                      <p className="text-xl font-black text-slate-900">
+                        Add Lab
+                      </p>
+                      <button
+                        onClick={() => setShowAddLab(false)}
+                        className="w-9 h-9 rounded-xl bg-white border border-slate-100 flex items-center justify-center"
+                      >
+                        <X size={16} className="text-slate-600" />
+                      </button>
+                    </div>
+                    <input
+                      autoFocus
+                      type="text"
+                      value={newLab}
+                      onChange={(e) => setNewLab(e.target.value)}
+                      placeholder="Lab name"
+                      className="w-full h-14 rounded-2xl border border-slate-200 bg-white px-3 text-base font-semibold text-slate-800 outline-none focus:border-blue-400 focus:bg-white transition-colors"
+                    />
+                    <button
+                      disabled={addLabLoading}
+                      onClick={() => {
+                        const name = newLab.trim();
+                        if (!name) return;
+                        handleAddLab(name);
+                      }}
+                      className="w-full h-14 rounded-2xl bg-slate-900 text-white text-sm font-bold hover:bg-slate-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                    >
+                      {addLabLoading && (
+                        <RefreshCw size={16} className="animate-spin" />
+                      )}
+                      {addLabLoading ? "Adding..." : "Add"}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Step 2 */}
+        {step === 2 && (
+          <div className="px-6 pb-8 space-y-4 mt-4">
+            {/* Add Test Button */}
+            <div className="flex justify-end">
+              <button
+                onClick={() =>
+                  navigate("/select-test", {
+                    state: { date, doctor, lab, tests },
+                  })
+                }
+                className="h-10 rounded-xl border border-dashed border-slate-300 bg-green-500 text-white text-xs font-bold flex items-center justify-center gap-2 px-5 hover:bg-white transition-colors"
+              >
+                <Plus size={16} />
+                Add
+              </button>
+            </div>
+
+            {/* Selected Tests with Values */}
+            {tests.length > 0 && (
+              <div className="space-y-3">
+                <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                  Enter Values
+                </p>
+                {tests.map((test) => (
+                  <div
+                    key={test.parameter_id}
+                    className="flex-1 items-start gap-3 bg-white border border-slate-200 rounded-2xl p-3"
+                  >
+                    {/* <FlaskConical
                     size={16}
                     className="text-slate-400 shrink-0 mt-1"
                   /> */}
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between">
-                      <p className="text-sm font-bold text-slate-800 truncate mb-2">
-                        {test.parameter_name}
-                      </p>
-                      <button
-                        onClick={() => toggleTest(test)}
-                        className="w-8 h-8 rounded-lg bg-white flex items-center justify-center hover:bg-slate-100 transition-colors shrink-0 mt-1"
-                      >
-                        <X size={14} className="text-slate-500" />
-                      </button>
-                    </div>
-                    <div className="relative">
-                      <input
-                        type="text"
-                        value={test.value}
-                        onChange={(e) =>
-                          updateTestValue(test.parameter_name, e.target.value)
-                        }
-                        placeholder="0.0"
-                        className="w-full h-16 rounded-3xl border border-slate-200 bg-white pl-5 pr-14 text-lg font-bold text-slate-700 placeholder:text-slate-300 outline-none focus:border-blue-300 focus:ring-2 focus:ring-blue-100 transition-all"
-                      />
-                      {test.parameter_unit && (
-                        <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm font-medium text-slate-400">
-                          {test.parameter_unit}
-                        </span>
-                      )}
-                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between">
+                        <p className="text-sm font-bold text-slate-800 truncate mb-2">
+                          {test.parameter_name}
+                        </p>
+                        <button
+                          onClick={() => toggleTest(test)}
+                          className="w-8 h-8 rounded-lg bg-white flex items-center justify-center hover:bg-slate-100 transition-colors shrink-0 mt-1"
+                        >
+                          <X size={14} className="text-slate-500" />
+                        </button>
+                      </div>
+                      <div className="relative">
+                        <input
+                          type="text"
+                          value={test.value}
+                          onChange={(e) =>
+                            updateTestValue(test.parameter_name, e.target.value)
+                          }
+                          placeholder="00"
+                          className="w-full h-16 rounded-3xl border border-slate-200 bg-white pl-5 pr-14 text-lg font-bold text-slate-700 placeholder:text-slate-300 outline-none focus:border-blue-300 focus:ring-2 focus:ring-blue-100 transition-all"
+                        />
+                        {test.parameter_unit && (
+                          <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm font-medium text-slate-400">
+                            {test.parameter_unit}
+                          </span>
+                        )}
+                      </div>
 
-                    {/* Attachments */}
-                    {/* <div className="flex-1 min-w-0 my-6">
+                      {/* Attachments */}
+                      {/* <div className="flex-1 min-w-0 my-6">
                       <input
                         id={`file-input-${test.parameter_id}`}
                         type="file"
@@ -683,37 +719,38 @@ const AddReport = ({ token }: AddReportProps) => {
                         </div>
                       )}
                     </div> */}
+                    </div>
                   </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
+                ))}
+              </div>
+            )}
+          </div>
+        )}
 
-      {/* Fixed bottom action button */}
-      <div className="fixed bottom-0 left-0 right-0 p-4 bg-white border-t border-slate-100">
-        <div className="max-w-md mx-auto">
-          {step === 1 ? (
-            <button
-              onClick={handleContinue}
-              disabled={!date || !doctor || !lab}
-              className="w-full h-14 rounded-2xl bg-slate-900 text-white text-sm font-bold flex items-center justify-center gap-2 hover:bg-slate-800 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-            >
-              Continue
-            </button>
-          ) : (
-            <button
-              onClick={handleFinalSubmit}
-              disabled={tests.length === 0 || addLabReportLoading}
-              className="w-full h-14 rounded-2xl bg-slate-900 text-white text-sm font-bold flex items-center justify-center gap-2 hover:bg-slate-800 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-            >
-              {addLabReportLoading && (
-                <RefreshCw size={16} className="animate-spin" />
-              )}
-              {addLabReportLoading ? "Saving..." : "Save Report"}
-            </button>
-          )}
+        {/* Fixed bottom action button */}
+        <div className="fixed bottom-0 left-0 right-0 p-4 bg-white border-t border-slate-100">
+          <div className="max-w-md mx-auto">
+            {step === 1 ? (
+              <button
+                onClick={handleContinue}
+                disabled={!date || !doctor || !lab}
+                className="w-full h-14 rounded-2xl bg-slate-900 text-white text-sm font-bold flex items-center justify-center gap-2 hover:bg-slate-800 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                Continue
+              </button>
+            ) : (
+              <button
+                onClick={handleFinalSubmit}
+                disabled={tests.length === 0 || tests.some((t) => !t.value || !t.value.trim()) || addLabReportLoading}
+                className="w-full h-14 rounded-2xl bg-slate-900 text-white text-sm font-bold flex items-center justify-center gap-2 hover:bg-slate-800 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                {addLabReportLoading && (
+                  <RefreshCw size={16} className="animate-spin" />
+                )}
+                {addLabReportLoading ? "Saving..." : "Save Report"}
+              </button>
+            )}
+          </div>
         </div>
       </div>
     </div>

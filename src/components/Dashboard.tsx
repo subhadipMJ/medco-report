@@ -50,6 +50,7 @@ const Dashboard = ({ token }: DashboardProps) => {
     "all" | "critical" | "normal"
   >("all");
   const [page, setPage] = useState(1);
+  const [vitalsModalOpen, setVitalsModalOpen] = useState(false);
 
   // Read filters from URL on mount
   useEffect(() => {
@@ -78,6 +79,8 @@ const Dashboard = ({ token }: DashboardProps) => {
     if (p) {
       const pn = parseInt(p, 10);
       if (!isNaN(pn) && pn > 0) setPage(pn);
+    } else if (initialHighestCachedPage.current > 1) {
+      setPage(initialHighestCachedPage.current);
     }
   }, []);
 
@@ -154,15 +157,24 @@ const Dashboard = ({ token }: DashboardProps) => {
     return {};
   }, [datePreset, customStart, customEnd]);
 
-  const { rawList, pagination, loading, isLoadingMore, error, refetch } =
-    useLabReports(token || null, {
-      search: debouncedSearchQuery.trim() || undefined,
-      ...dateFilters,
-      status: statusFilter === "all" ? undefined : statusFilter,
-      page,
-    });
+  const {
+    rawList,
+    pagination,
+    loading,
+    isLoadingMore,
+    error,
+    refetch,
+    highestCachedPage,
+  } = useLabReports(token || null, {
+    search: debouncedSearchQuery.trim() || undefined,
+    ...dateFilters,
+    status: statusFilter === "all" ? undefined : statusFilter,
+    page,
+  });
 
   // const { vitalsOthers } = useVitalsOthers(token);
+
+  const initialHighestCachedPage = useRef(highestCachedPage);
 
   useEffect(() => {
     setPage(1);
@@ -225,8 +237,8 @@ const Dashboard = ({ token }: DashboardProps) => {
     )
       return {
         Icon: Droplet as LucideIcon,
-        iconBg: "bg-rose-50 text-rose-500",
-        borderColor: "border-l-4 border-l-rose-300",
+        iconBg: "bg-slate-50 text-slate-500",
+        borderColor: "border-l-4 border-l-slate-200",
       };
     if (
       n.includes("cholesterol") ||
@@ -237,8 +249,8 @@ const Dashboard = ({ token }: DashboardProps) => {
     )
       return {
         Icon: Heart as LucideIcon,
-        iconBg: "bg-amber-50 text-amber-500",
-        borderColor: "border-l-4 border-l-amber-300",
+        iconBg: "bg-slate-50 text-slate-500",
+        borderColor: "border-l-4 border-l-slate-200",
       };
     if (
       n.includes("glucose") ||
@@ -248,8 +260,8 @@ const Dashboard = ({ token }: DashboardProps) => {
     )
       return {
         Icon: Zap as LucideIcon,
-        iconBg: "bg-blue-50 text-blue-500",
-        borderColor: "border-l-4 border-l-blue-300",
+        iconBg: "bg-slate-50 text-slate-500",
+        borderColor: "border-l-4 border-l-slate-200",
       };
     if (
       n.includes("liver") ||
@@ -262,8 +274,8 @@ const Dashboard = ({ token }: DashboardProps) => {
     )
       return {
         Icon: FlaskConical as LucideIcon,
-        iconBg: "bg-emerald-50 text-emerald-500",
-        borderColor: "border-l-4 border-l-emerald-300",
+        iconBg: "bg-slate-50 text-slate-500",
+        borderColor: "border-l-4 border-l-slate-200",
       };
     if (
       n.includes("kidney") ||
@@ -274,8 +286,8 @@ const Dashboard = ({ token }: DashboardProps) => {
     )
       return {
         Icon: Beaker as LucideIcon,
-        iconBg: "bg-violet-50 text-violet-500",
-        borderColor: "border-l-4 border-l-violet-300",
+        iconBg: "bg-slate-50 text-slate-500",
+        borderColor: "border-l-4 border-l-slate-200",
       };
     if (
       n.includes("thyroid") ||
@@ -285,8 +297,8 @@ const Dashboard = ({ token }: DashboardProps) => {
     )
       return {
         Icon: Thermometer as LucideIcon,
-        iconBg: "bg-cyan-50 text-cyan-500",
-        borderColor: "border-l-4 border-l-cyan-300",
+        iconBg: "bg-slate-50 text-slate-500",
+        borderColor: "border-l-4 border-l-slate-200",
       };
     if (
       n.includes("calcium") ||
@@ -298,8 +310,8 @@ const Dashboard = ({ token }: DashboardProps) => {
     )
       return {
         Icon: Bone as LucideIcon,
-        iconBg: "bg-orange-50 text-orange-500",
-        borderColor: "border-l-4 border-l-orange-300",
+        iconBg: "bg-slate-50 text-slate-500",
+        borderColor: "border-l-4 border-l-slate-200",
       };
     return {
       Icon: Activity as LucideIcon,
@@ -310,12 +322,13 @@ const Dashboard = ({ token }: DashboardProps) => {
 
   return (
     <div className="min-h-screen bg-slate-50 font-sans">
-      <div className="max-w-4xl mx-auto bg-white min-h-screen pb-24">
+      <div className="max-w-[1440px] mx-auto min-h-screen pb-24">
         <Header
           token={token}
           title="My Reports"
           onRefresh={refetch}
           isRefreshing={loading}
+          onVitalsModalChange={setVitalsModalOpen}
         />
 
         {/* Vitals row */}
@@ -338,7 +351,7 @@ const Dashboard = ({ token }: DashboardProps) => {
         </div> */}
 
         {/* Search & Date Filter */}
-        <div className="px-6 space-y-3 mb-6">
+        <div className="px-6 space-y-3 mb-6 bg-slate-50">
           <div className="flex items-center gap-2">
             <div className="relative flex-1">
               <Search
@@ -350,7 +363,7 @@ const Dashboard = ({ token }: DashboardProps) => {
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Search reports"
-                className="w-full h-10 rounded-xl border border-slate-200 bg-slate-50 pl-9 pr-3 text-sm font-medium text-slate-800 placeholder:text-slate-400 outline-none focus:border-blue-400 focus:bg-white transition-colors"
+                className="w-full h-10 rounded-xl border border-slate-200 bg-white pl-9 pr-3 text-sm font-medium text-slate-800 placeholder:text-slate-400 outline-none focus:border-blue-400 focus:bg-white transition-colors"
               />
             </div>
             <div className="relative shrink-0">
@@ -372,7 +385,7 @@ const Dashboard = ({ token }: DashboardProps) => {
                       | "custom",
                   )
                 }
-                className="h-10 appearance-none rounded-xl border border-slate-200 bg-slate-50 pl-9 pr-8 text-xs font-semibold text-slate-700 outline-none focus:border-blue-400 focus:bg-white transition-colors cursor-pointer"
+                className="h-10 appearance-none rounded-xl border border-slate-200 bg-white pl-9 pr-8 text-xs font-semibold text-slate-700 outline-none focus:border-blue-400 focus:bg-white transition-colors cursor-pointer"
               >
                 <option value="all">All Time</option>
                 <option value="today">Today</option>
@@ -426,7 +439,7 @@ const Dashboard = ({ token }: DashboardProps) => {
                 <button
                   key={status}
                   onClick={() => setStatusFilter(status)}
-                  className={`flex-auto whitespace-nowrap rounded-lg px-0.5 py-1.5 text-[9px] font-semibold transition-all ${
+                  className={`flex-auto whitespace-nowrap rounded-lg px-0.5 py-1.5 text-[12px] font-semibold transition-all ${
                     statusFilter === status
                       ? status === "critical"
                         ? "bg-rose-600 text-white"
@@ -466,7 +479,7 @@ const Dashboard = ({ token }: DashboardProps) => {
             </div>
           </div> */}
 
-        <div className="px-6 pb-24 relative">
+        <div className="px-6 pb-24 relative bg-slate-50">
           <div className="animate-fade-in space-y-6">
             {loading && (
               <div className="flex flex-col items-center justify-center py-20 gap-4">
@@ -509,11 +522,11 @@ const Dashboard = ({ token }: DashboardProps) => {
                 {trendCards.map((card) => {
                   const statusPill =
                     card.status === "normal"
-                      ? "bg-emerald-50 text-emerald-700"
+                      ? "bg-slate-100 text-slate-700"
                       : card.status === "high"
-                        ? "bg-rose-50 text-rose-700"
+                        ? "bg-slate-100 text-slate-700"
                         : card.status === "low"
-                          ? "bg-blue-50 text-blue-700"
+                          ? "bg-slate-100 text-slate-700"
                           : "bg-slate-50 text-slate-600";
                   const statusLabel =
                     card.status === "normal"
@@ -559,16 +572,16 @@ const Dashboard = ({ token }: DashboardProps) => {
                     dotPercent = Math.max(0, Math.min(100, dotPercent));
                   }
 
-                  const fmtBar = (n: number) => {
-                    const s = n.toFixed(1);
-                    return s.endsWith(".0") ? s.slice(0, -2) : s;
-                  };
+                  // const fmtBar = (n: number) => {
+                  //   const s = n.toFixed(1);
+                  //   return s.endsWith(".0") ? s.slice(0, -2) : s;
+                  // };
 
-                  const { Icon, iconBg, borderColor } = getTestMeta(card.name);
+                  const { Icon, iconBg } = getTestMeta(card.name);
                   return (
                     <div
                       key={card.key}
-                      className={`group cursor-pointer rounded-3xl border border-slate-100 ${borderColor} bg-white p-5 shadow-[0_2px_12px_rgba(15,23,42,0.04)] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_8px_24px_rgba(15,23,42,0.08)]`}
+                      className="group cursor-pointer border-b border-slate-200 bg-white p-4 hover:bg-slate-50 transition-colors"
                       onClick={() => navigate(`/report/${card.parameterId}`)}
                     >
                       {/* Header */}
@@ -659,7 +672,7 @@ const Dashboard = ({ token }: DashboardProps) => {
                       </div>
 
                       {/* Bar */}
-                      {isNumeric && (
+                      {/* {isNumeric && (
                         <div className="mt-5">
                           <div className="relative h-1.5 rounded-full bg-slate-100">
                             <div
@@ -683,12 +696,11 @@ const Dashboard = ({ token }: DashboardProps) => {
                             </span>
                           </div>
                         </div>
-                      )}
+                      )} */}
 
                       {/* lab name & doctor name */}
-                      <div className="mt-4 flex gap-2 text-xs text-slate-500">
+                      <div className="mt-4 flex justify-between gap-2 text-xs text-slate-500">
                         <span className="font-medium">{card.doctorName}</span>
-                        <span>•</span>
                         <span>{card.labName}</span>
                       </div>
                     </div>
@@ -725,13 +737,15 @@ const Dashboard = ({ token }: DashboardProps) => {
         </div>
 
         {/* Floating Add Report Button */}
-        <button
-          onClick={() => navigate(`/add-report?token=${token}`)}
-          className="fixed bottom-40 right-6 w-14 h-14 rounded-full bg-slate-900 text-white shadow-lg flex items-center justify-center hover:bg-slate-800 active:scale-95 transition-all z-50"
-          title="Add Report"
-        >
-          <Plus size={24} />
-        </button>
+        {!vitalsModalOpen && (
+          <button
+            onClick={() => navigate(`/add-report?token=${token}`)}
+            className="fixed bottom-40 right-6 w-14 h-14 rounded-full bg-slate-900 text-white shadow-lg flex items-center justify-center hover:bg-slate-800 active:scale-95 transition-all z-50"
+            title="Add Report"
+          >
+            <Plus size={24} />
+          </button>
+        )}
       </div>
     </div>
   );

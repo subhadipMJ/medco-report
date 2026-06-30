@@ -88,5 +88,6 @@ export default defineConfig({
         rewrite: (path) => path.replace(/^\/medco-api/, '/api'),
       },
     },
+    host: true,
   },
 });

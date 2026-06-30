@@ -178,6 +178,12 @@ export interface CompareReportsResponse {
   error: number;
   message?: string;
   data: CompareReportParameter[];
+  pagination: {
+    current_page: number;
+    per_page: number;
+    total: number;
+    last_page: number;
+  };
 }
 
 export interface CompareReportDetails {
@@ -222,23 +228,89 @@ export interface PrescriptionResponse {
   prescription: Prescription[];
 }
 
-export interface UserProfile {
+export interface PrescriptionSubmitRequest {
+  doctor_name: string;
+  prescription: File;
+}
+
+export interface PrescriptionSubmitResponse {
+  success: number;
+  error: number;
+  message: string;
+}
+
+export interface DeletePrescriptionRequest {
   id: number;
+}
+
+export interface DeletePrescriptionResponse {
+  success: number;
+  error: number;
+  message: string;
+}
+
+export interface UserProfile {
+  id: number | null;
+  category_id: number | null;
   name: string;
   email: string;
+  email_verified_at: string | null;
+  Activity: string;
+  day: string | null;
+  start_time: string | null;
+  end_time: string | null;
+  api_token: string;
+  type: string;
+  experience: string | null;
+  city: string | null;
+  province: string | null;
   phone: string;
+  shop_phone: string | null;
+  referral_code: string;
+  registration_code: string | null;
+  hospital_name: string | null;
+  council_short_code: string | null;
+  council_id: number | null;
+  years_info: string | null;
+  address: string;
+  url: string | null;
+  short_url: string | null;
   avatar: string | null;
-  age: number | null;
-  height: string | null;
-  weight: string | null;
   gender: string | null;
+  lang: string;
+  job_title: string | null;
+  default_pipeline: string | null;
+  created_by: number;
+  is_active: number;
+  created_at: string;
+  updated_at: string;
+  postal_code: string | null;
+  latitude: string | null;
+  longitude: string | null;
+  image: string | null;
+  wallet: number;
+  status: string;
+  verify: string;
+  remark: string | null;
+  deleted_at: string | null;
+  package: string;
+  display: string;
+  full_text: string | null;
+  number: string | null;
+  by_user_id: string | null;
+  user_type: string;
+  is_doner: string;
+  clinic_visitd_at: string | null;
+  doctor_bio: string | null;
+  logo: string | null;
+  subscription_start_date: string | null;
+  subscription_end_date: string | null;
+  subscription_status: string | null;
 }
 
 export interface UserProfileResponse {
-  success: number;
-  error: number;
-  message?: string;
-  data: UserProfile;
+  success: boolean;
+  user: UserProfile;
 }
 
 export interface Doctor {
@@ -322,10 +394,21 @@ export interface AddLabReportResponse {
   message: string;
 }
 
+export interface DeleteLabReportRequest {
+  id: number;
+}
+
+export interface DeleteLabReportResponse {
+  success: number;
+  error: number;
+  message: string;
+}
+
 export interface Vitals {
   id: number;
   user_id: number;
-  height: string;
+  height_ft: number;
+  height_inch: number;
   weight: string;
   bmi: string;
   pulse: string;
@@ -342,7 +425,8 @@ export interface VitalsResponse {
 }
 
 export interface AddVitalRequest {
-  height?: number;
+  height_ft?: number;
+  height_inch?: number;
   weight?: number;
   bmi?: number;
   pulse?: number;

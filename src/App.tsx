@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import Layout from './components/Layout';
 import Dashboard from './components/Dashboard';
@@ -7,12 +8,18 @@ import GroupWise from './components/GroupWise';
 import Analaytics from './components/Analaytics';
 import Prescription from './components/Prescription';
 import PrescriptionView from './components/PrescriptionView';
+import AddPrescription from './components/AddPrescription';
 import Profile from './components/Profile';
 import AddReport from './components/AddReport';
 import SelectTest from './components/SelectTest';
 
 function AppRoutes() {
   const location = useLocation();
+
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [location.pathname]);
+
   const searchParams = new URLSearchParams(location.search);
 
   const urlToken = searchParams.get('token');
@@ -39,6 +46,7 @@ function AppRoutes() {
         <Route path="/compare" element={<Compare token={token} />} />
         <Route path="/prescription" element={<Prescription token={token} />} />
         <Route path="/prescription-view" element={<PrescriptionView />} />
+        <Route path="/add-prescription" element={<AddPrescription token={token} />} />
         <Route path="/profile" element={<Profile token={token} />} />
         <Route path="/add-report" element={<AddReport token={token} />} />
         <Route path="/select-test" element={<SelectTest token={token} />} />

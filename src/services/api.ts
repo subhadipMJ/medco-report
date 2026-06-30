@@ -12,6 +12,8 @@ import {
   AddVitalResponse,
   CompareReportDetailsResponse,
   CompareReportsResponse,
+  DeleteLabReportRequest,
+  DeleteLabReportResponse,
   DoctorResponse,
   LabReportDetailsResponse,
   LabReportGroupData,
@@ -23,6 +25,10 @@ import {
   LabReportTypeDetailsResponse,
   LabResponse,
   PrescriptionResponse,
+  PrescriptionSubmitRequest,
+  PrescriptionSubmitResponse,
+  DeletePrescriptionRequest,
+  DeletePrescriptionResponse,
   UserProfileResponse,
   VitalsOthersResponse,
   VitalsResponse,
@@ -32,7 +38,24 @@ import { cacheResponse, getCachedResponse } from "./offlineCache";
 const BASE_URL = "https://www.medcoclinics.com/api"; // live
 // const BASE_URL = 'https://medco.code-dev.in/api';
 
-// In-flight request deduplication maps
+// remove csrf token and origin headers
+delete axios.defaults.headers.common["X-XSRF-TOKEN"];
+delete axios.defaults.headers.common["X-CSRF-TOKEN"];
+const api = axios.create({
+  baseURL: BASE_URL,
+  withCredentials: false,
+  headers: {
+    Accept: "application/json",
+    "Content-Type": "application/json",
+  },
+});
+
+api.interceptors.request.use((config) => {
+  delete config.headers["Origin"];
+  return config;
+});
+
+// In-flight request deduplication
 const inFlightLists = new Map<string, Promise<LabReportListResponse>>();
 const inFlightDetails = new Map<string, Promise<LabReportDetailsResponse>>();
 const inFlightTypeDetails = new Map<string, Promise<LabReportTypeData>>();
@@ -53,51 +76,80 @@ const inFlightPrescriptions = new Map<string, Promise<PrescriptionResponse>>();
 const inFlightUserProfile = new Map<string, Promise<UserProfileResponse>>();
 const inFlightDoctor = new Map<string, Promise<DoctorResponse>>();
 const inFlightLab = new Map<string, Promise<LabResponse>>();
-const inFlightVitals=new Map<string, Promise<VitalsResponse>>();
+const inFlightVitals = new Map<string, Promise<VitalsResponse>>();
 const inFlightVitalsOthers = new Map<string, Promise<VitalsOthersResponse>>();
+
+// In-memory TTL cache (ms)
+const CACHE_TTL = 60_000;
+const cache = new Map<string, { data: unknown; ts: number }>();
+
+function getCache<T>(key: string): T | null {
+  const entry = cache.get(key);
+  if (!entry) return null;
+  if (Date.now() - entry.ts > CACHE_TTL) {
+    cache.delete(key);
+    return null;
+  }
+  return entry.data as T;
+}
+
+function setCache<T>(key: string, data: T): void {
+  cache.set(key, { data, ts: Date.now() });
+}
+
+export function invalidateCache(pattern?: string): void {
+  if (!pattern) {
+    cache.clear();
+    return;
+  }
+  for (const key of cache.keys()) {
+    if (key.includes(pattern)) cache.delete(key);
+  }
+}
 
 export const fetchCompareReports = async (
   token: string,
   page?: number,
+  search?: string,
 ): Promise<CompareReportsResponse> => {
-  const cacheKey = `compare-reports-${token.slice(-8)}-${page || 1}`;
+  const cacheKey = `compare-reports-${token.slice(-8)}-${page || 1}-${search || ""}`;
+  const cached = getCache<CompareReportsResponse>(cacheKey);
+  if (cached) return cached;
   if (inFlightCompareReports.has(cacheKey)) {
     return inFlightCompareReports.get(cacheKey)!;
   }
 
   const promise = (async () => {
     try {
-      const response = await fetch(
-        `${BASE_URL}/web/compare-reports?page=${page || 1}`,
-        {
-          method: "GET",
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-            Accept: "application/json",
-          },
+      const response = await api.get("/web/compare-reports", {
+        params: { page: page || 1, search: search || undefined },
+        headers: {
+          Authorization: `Bearer ${token}`,
         },
-      );
+      });
 
-      if (response.status === 429) {
-        const retryAfter = response.headers.get("Retry-After") || "60";
-        throw new Error(
-          `Rate limited. Too many requests. Please wait ${retryAfter}s before retrying.`,
-        );
-      }
-
-      if (!response.ok) {
-        throw new Error(`API error: ${response.status} ${response.statusText}`);
-      }
-
-      const data: CompareReportsResponse = await response.json();
+      const data: CompareReportsResponse = response.data;
+      setCache(cacheKey, data);
       await cacheResponse(cacheKey, data);
       return data;
-    } catch (err) {
+    } catch (err: any) {
+      if (axios.isAxiosError(err)) {
+        if (err.response?.status === 429) {
+          const retryAfter = err.response.headers["retry-after"] || "60";
+          throw new Error(
+            `Rate limited. Too many requests. Please wait ${retryAfter}s before retrying.`,
+          );
+        }
+      }
       const cached = await getCachedResponse<CompareReportsResponse>(cacheKey);
       if (cached) {
         console.warn("Serving cached compare reports (offline mode)");
         return cached;
+      }
+      if (axios.isAxiosError(err)) {
+        throw new Error(
+          `API error: ${err.response?.status} ${err.response?.statusText}`,
+        );
       }
       throw err;
     } finally {
@@ -114,44 +166,49 @@ export const fetchCompareReportsDetails = async (
   parameterIds: string[],
 ): Promise<CompareReportDetailsResponse> => {
   const cacheKey = `compare-reports-details-${token.slice(-8)}-${parameterIds.join("-")}`;
+  const cached = getCache<CompareReportDetailsResponse>(cacheKey);
+  if (cached) return cached;
   if (inFlightCompareDetails.has(cacheKey)) {
     return inFlightCompareDetails.get(cacheKey)!;
   }
 
   const promise = (async () => {
     try {
-      const response = await fetch(`${BASE_URL}/web/compare-report-detail`, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-          Accept: "application/json",
-        },
-        body: JSON.stringify({
+      const response = await api.post(
+        "/web/compare-report-detail",
+        {
           parameter_ids: parameterIds.map((id) => parseInt(id)),
-        }),
-      });
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        },
+      );
 
-      if (response.status === 429) {
-        const retryAfter = response.headers.get("Retry-After") || "60";
-        throw new Error(
-          `Rate limited. Too many requests. Please wait ${retryAfter}s before retrying.`,
-        );
-      }
-
-      if (!response.ok) {
-        throw new Error(`API error: ${response.status} ${response.statusText}`);
-      }
-
-      const data: CompareReportDetailsResponse = await response.json();
+      const data: CompareReportDetailsResponse = response.data;
+      setCache(cacheKey, data);
       await cacheResponse(cacheKey, data);
       return data;
-    } catch (err) {
+    } catch (err: any) {
+      if (axios.isAxiosError(err)) {
+        if (err.response?.status === 429) {
+          const retryAfter = err.response.headers["retry-after"] || "60";
+          throw new Error(
+            `Rate limited. Too many requests. Please wait ${retryAfter}s before retrying.`,
+          );
+        }
+      }
       const cached =
         await getCachedResponse<CompareReportDetailsResponse>(cacheKey);
       if (cached) {
         console.warn("Serving cached compare reports (offline mode)");
         return cached;
+      }
+      if (axios.isAxiosError(err)) {
+        throw new Error(
+          `API error: ${err.response?.status} ${err.response?.statusText}`,
+        );
       }
       throw err;
     } finally {
@@ -166,24 +223,9 @@ export const fetchCompareReportsDetails = async (
 export const fetchPrescriptions = async (
   token: string,
 ): Promise<PrescriptionResponse> => {
-  delete axios.defaults.headers.common["X-XSRF-TOKEN"];
-  delete axios.defaults.headers.common["X-CSRF-TOKEN"];
-
-  const api = axios.create({
-    baseURL: BASE_URL,
-    withCredentials: false,
-    headers: {
-      Accept: "application/json",
-      "Content-Type": "application/json",
-    },
-  });
-
-  api.interceptors.request.use((config) => {
-    delete config.headers["Origin"];
-    return config;
-  });
-
   const cacheKey = `prescriptions-${token.slice(-8)}`;
+  const cached = getCache<PrescriptionResponse>(cacheKey);
+  if (cached) return cached;
   if (inFlightPrescriptions.has(cacheKey)) {
     return inFlightPrescriptions.get(cacheKey)!;
   }
@@ -197,6 +239,7 @@ export const fetchPrescriptions = async (
       });
 
       const data: PrescriptionResponse = response.data;
+      setCache(cacheKey, data);
       await cacheResponse(cacheKey, data);
       return data;
     } catch (err: any) {
@@ -226,6 +269,77 @@ export const fetchPrescriptions = async (
   return promise;
 };
 
+export const addPrescriptions = async (
+  token: string,
+  request: PrescriptionSubmitRequest,
+): Promise<PrescriptionSubmitResponse> => {
+  const formData = new FormData();
+  formData.append("doctor_name", request.doctor_name);
+  formData.append("prescription", request.prescription);
+
+  const promise = (async () => {
+    try {
+      const response = await api.post("/prescription/submit", formData, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "multipart/form-data",
+        },
+      });
+
+      const data: PrescriptionSubmitResponse = response.data;
+      invalidateCache("prescriptions-");
+      return data;
+    } catch (err: any) {
+      if (axios.isAxiosError(err)) {
+        if (err.response?.status === 429) {
+          const retryAfter = err.response.headers["retry-after"] || "60";
+          throw new Error(
+            `Rate limited. Too many requests. Please wait ${retryAfter}s before retrying.`,
+          );
+        }
+        throw new Error(
+          `API error: ${err.response?.status} ${err.response?.statusText}`,
+        );
+      }
+      throw err;
+    }
+  })();
+
+  return promise;
+};
+
+export const deletePrescriptions = async (
+  token: string,
+  request: DeletePrescriptionRequest,
+): Promise<DeletePrescriptionResponse> => {
+  const payload = { ...request };
+
+  try {
+    const response = await api.post("/prescription/delete", payload, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    const data: DeletePrescriptionResponse = response.data;
+    invalidateCache("prescriptions-");
+    return data;
+  } catch (err: any) {
+    if (axios.isAxiosError(err)) {
+      if (err.response?.status === 429) {
+        const retryAfter = err.response.headers["retry-after"] || "60";
+        throw new Error(
+          `Rate limited. Too many requests. Please wait ${retryAfter}s before retrying.`,
+        );
+      }
+      throw new Error(
+        `API error: ${err.response?.status} ${err.response?.statusText}`,
+      );
+    }
+    throw err;
+  }
+};
+
 export const fetchLabReports = async (
   token: string,
   search?: string,
@@ -235,6 +349,8 @@ export const fetchLabReports = async (
   page?: number,
 ): Promise<LabReportListResponse> => {
   const cacheKey = `lists-${token.slice(-8)}-${search || ""}-${start_date || ""}-${end_date || ""}-${status || ""}-${page || 1}`;
+  const cached = getCache<LabReportListResponse>(cacheKey);
+  if (cached) return cached;
   if (inFlightLists.has(cacheKey)) {
     return inFlightLists.get(cacheKey)!;
   }
@@ -248,38 +364,43 @@ export const fetchLabReports = async (
       if (status) body.status = status;
       // if (page) body.page = page;
 
-      const response = await fetch(
-        `${BASE_URL}/web/reports?page=${page || 1}&start_date=${start_date || ""}&end_date=${end_date || ""}`,
+      const response = await api.post(
+        "/web/reports",
+        Object.keys(body).length ? body : undefined,
         {
-          method: "POST",
+          params: {
+            page: page || 1,
+            start_date: start_date || "",
+            end_date: end_date || "",
+          },
           headers: {
             Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-            Accept: "application/json",
           },
-          body: Object.keys(body).length ? JSON.stringify(body) : undefined,
         },
       );
 
-      if (response.status === 429) {
-        const retryAfter = response.headers.get("Retry-After") || "60";
-        throw new Error(
-          `Rate limited. Too many requests. Please wait ${retryAfter}s before retrying.`,
-        );
-      }
-
-      if (!response.ok) {
-        throw new Error(`API error: ${response.status} ${response.statusText}`);
-      }
-
-      const data: LabReportListResponse = await response.json();
+      const data: LabReportListResponse = response.data;
+      setCache(cacheKey, data);
       await cacheResponse(cacheKey, data);
       return data;
-    } catch (err) {
+    } catch (err: any) {
+      if (axios.isAxiosError(err)) {
+        if (err.response?.status === 429) {
+          const retryAfter = err.response.headers["retry-after"] || "60";
+          throw new Error(
+            `Rate limited. Too many requests. Please wait ${retryAfter}s before retrying.`,
+          );
+        }
+      }
       const cached = await getCachedResponse<LabReportListResponse>(cacheKey);
       if (cached) {
         console.warn("Serving cached lab reports (offline mode)");
         return cached;
+      }
+      if (axios.isAxiosError(err)) {
+        throw new Error(
+          `API error: ${err.response?.status} ${err.response?.statusText}`,
+        );
       }
       throw err;
     } finally {
@@ -299,46 +420,50 @@ export const fetchLabReportDetails = async (
 ): Promise<LabReportDetailsResponse> => {
   const dateSuffix = startDate && endDate ? `-${startDate}-${endDate}` : "";
   const cacheKey = `details-${testId}-${token.slice(-8)}${dateSuffix}`;
+  const cached = getCache<LabReportDetailsResponse>(cacheKey);
+  if (cached) return cached;
   if (inFlightDetails.has(cacheKey)) {
     return inFlightDetails.get(cacheKey)!;
   }
 
   const promise = (async () => {
     try {
-      const response = await fetch(`${BASE_URL}/web/reports/${testId}`, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-          Accept: "application/json",
-        },
-        body: JSON.stringify({
-          // test_id: testId,
+      const response = await api.post(
+        `/web/reports/${testId}`,
+        {
           ...(startDate ? { start_date: startDate } : {}),
           ...(endDate ? { end_date: endDate } : {}),
-        }),
-      });
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        },
+      );
 
-      if (response.status === 429) {
-        const retryAfter = response.headers.get("Retry-After") || "60";
-        throw new Error(
-          `Rate limited. Too many requests. Please wait ${retryAfter}s before retrying.`,
-        );
-      }
-
-      if (!response.ok) {
-        throw new Error(`API error: ${response.status} ${response.statusText}`);
-      }
-
-      const data: LabReportDetailsResponse = await response.json();
+      const data: LabReportDetailsResponse = response.data;
+      setCache(cacheKey, data);
       await cacheResponse(cacheKey, data);
       return data;
-    } catch (err) {
+    } catch (err: any) {
+      if (axios.isAxiosError(err)) {
+        if (err.response?.status === 429) {
+          const retryAfter = err.response.headers["retry-after"] || "60";
+          throw new Error(
+            `Rate limited. Too many requests. Please wait ${retryAfter}s before retrying.`,
+          );
+        }
+      }
       const cached =
         await getCachedResponse<LabReportDetailsResponse>(cacheKey);
       if (cached) {
         console.warn("Serving cached report details (offline mode)");
         return cached;
+      }
+      if (axios.isAxiosError(err)) {
+        throw new Error(
+          `API error: ${err.response?.status} ${err.response?.statusText}`,
+        );
       }
       throw err;
     } finally {
@@ -354,40 +479,42 @@ export const fetchLabReportType = async (
   token: string,
 ): Promise<LabReportTypeData> => {
   const cacheKey = `type-details-${token.slice(-8)}`;
+  const cached = getCache<LabReportTypeData>(cacheKey);
+  if (cached) return cached;
   if (inFlightTypeDetails.has(cacheKey)) {
     return inFlightTypeDetails.get(cacheKey)!;
   }
 
   const promise = (async () => {
     try {
-      const response = await fetch(`${BASE_URL}/lab-report-type`, {
-        method: "GET",
+      const response = await api.get("/lab-report-type", {
         headers: {
           Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-          Accept: "application/json",
         },
       });
 
-      if (response.status === 429) {
-        const retryAfter = response.headers.get("Retry-After") || "60";
-        throw new Error(
-          `Rate limited. Too many requests. Please wait ${retryAfter}s before retrying.`,
-        );
-      }
-
-      if (!response.ok) {
-        throw new Error(`API error: ${response.status} ${response.statusText}`);
-      }
-
-      const data: LabReportTypeDetailsResponse = await response.json();
+      const data: LabReportTypeDetailsResponse = response.data;
+      setCache(cacheKey, data.data);
       await cacheResponse(cacheKey, data.data);
       return data.data;
-    } catch (err) {
+    } catch (err: any) {
+      if (axios.isAxiosError(err)) {
+        if (err.response?.status === 429) {
+          const retryAfter = err.response.headers["retry-after"] || "60";
+          throw new Error(
+            `Rate limited. Too many requests. Please wait ${retryAfter}s before retrying.`,
+          );
+        }
+      }
       const cached = await getCachedResponse<LabReportTypeData>(cacheKey);
       if (cached) {
         console.warn("Serving cached report details (offline mode)");
         return cached;
+      }
+      if (axios.isAxiosError(err)) {
+        throw new Error(
+          `API error: ${err.response?.status} ${err.response?.statusText}`,
+        );
       }
       throw err;
     } finally {
@@ -404,40 +531,42 @@ export const fetchLabReportGroupDetails = async (
   groupId: string,
 ): Promise<LabReportGroupData> => {
   const cacheKey = `group-details-${groupId}-${token.slice(-8)}`;
+  const cached = getCache<LabReportGroupData>(cacheKey);
+  if (cached) return cached;
   if (inFlightGroupDetails.has(cacheKey)) {
     return inFlightGroupDetails.get(cacheKey)!;
   }
 
   const promise = (async () => {
     try {
-      const response = await fetch(`${BASE_URL}/lab-report/group/${groupId}`, {
-        method: "GET",
+      const response = await api.get(`/lab-report/group/${groupId}`, {
         headers: {
           Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-          Accept: "application/json",
         },
       });
 
-      if (response.status === 429) {
-        const retryAfter = response.headers.get("Retry-After") || "60";
-        throw new Error(
-          `Rate limited. Too many requests. Please wait ${retryAfter}s before retrying.`,
-        );
-      }
-
-      if (!response.ok) {
-        throw new Error(`API error: ${response.status} ${response.statusText}`);
-      }
-
-      const data: LabReportGroupDetailsResponse = await response.json();
+      const data: LabReportGroupDetailsResponse = response.data;
+      setCache(cacheKey, data.data);
       await cacheResponse(cacheKey, data.data);
       return data.data;
-    } catch (err) {
+    } catch (err: any) {
+      if (axios.isAxiosError(err)) {
+        if (err.response?.status === 429) {
+          const retryAfter = err.response.headers["retry-after"] || "60";
+          throw new Error(
+            `Rate limited. Too many requests. Please wait ${retryAfter}s before retrying.`,
+          );
+        }
+      }
       const cached = await getCachedResponse<LabReportGroupData>(cacheKey);
       if (cached) {
         console.warn("Serving cached report details (offline mode)");
         return cached;
+      }
+      if (axios.isAxiosError(err)) {
+        throw new Error(
+          `API error: ${err.response?.status} ${err.response?.statusText}`,
+        );
       }
       throw err;
     } finally {
@@ -454,43 +583,42 @@ export const fetchLabReportParameterDetails = async (
   parameterId: string,
 ): Promise<LabReportParameterData> => {
   const cacheKey = `parameter-details-${parameterId}-${token.slice(-8)}`;
+  const cached = getCache<LabReportParameterData>(cacheKey);
+  if (cached) return cached;
   if (inFlightParameterDetails.has(cacheKey)) {
     return inFlightParameterDetails.get(cacheKey)!;
   }
 
   const promise = (async () => {
     try {
-      const response = await fetch(
-        `${BASE_URL}/lab-report/parameter/${parameterId}`,
-        {
-          method: "GET",
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-            Accept: "application/json",
-          },
+      const response = await api.get(`/lab-report/parameter/${parameterId}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
         },
-      );
+      });
 
-      if (response.status === 429) {
-        const retryAfter = response.headers.get("Retry-After") || "60";
-        throw new Error(
-          `Rate limited. Too many requests. Please wait ${retryAfter}s before retrying.`,
-        );
-      }
-
-      if (!response.ok) {
-        throw new Error(`API error: ${response.status} ${response.statusText}`);
-      }
-
-      const data: LabReportParameterDetailsResponse = await response.json();
+      const data: LabReportParameterDetailsResponse = response.data;
+      setCache(cacheKey, data.data);
       await cacheResponse(cacheKey, data.data);
       return data.data;
-    } catch (err) {
+    } catch (err: any) {
+      if (axios.isAxiosError(err)) {
+        if (err.response?.status === 429) {
+          const retryAfter = err.response.headers["retry-after"] || "60";
+          throw new Error(
+            `Rate limited. Too many requests. Please wait ${retryAfter}s before retrying.`,
+          );
+        }
+      }
       const cached = await getCachedResponse<LabReportParameterData>(cacheKey);
       if (cached) {
         console.warn("Serving cached report details (offline mode)");
         return cached;
+      }
+      if (axios.isAxiosError(err)) {
+        throw new Error(
+          `API error: ${err.response?.status} ${err.response?.statusText}`,
+        );
       }
       throw err;
     } finally {
@@ -506,35 +634,35 @@ export const fetchUserProfile = async (
   token: string,
 ): Promise<UserProfileResponse> => {
   const cacheKey = `user-profile-${token.slice(-8)}`;
+  const cached = getCache<UserProfileResponse>(cacheKey);
+  if (cached) return cached;
   if (inFlightUserProfile.has(cacheKey)) {
     return inFlightUserProfile.get(cacheKey)!;
   }
 
   const promise = (async () => {
     try {
-      const response = await fetch(`${BASE_URL}/user/profile`, {
-        method: "GET",
+      const response = await api.get("/user/getDetails", {
         headers: {
           Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-          Accept: "application/json",
         },
       });
 
-      if (response.status === 429) {
-        const retryAfter = response.headers.get("Retry-After") || "60";
+      const data: UserProfileResponse = response.data;
+      setCache(cacheKey, data);
+      return data;
+    } catch (err: any) {
+      if (axios.isAxiosError(err)) {
+        if (err.response?.status === 429) {
+          const retryAfter = err.response.headers["retry-after"] || "60";
+          throw new Error(
+            `Rate limited. Too many requests. Please wait ${retryAfter}s before retrying.`,
+          );
+        }
         throw new Error(
-          `Rate limited. Too many requests. Please wait ${retryAfter}s before retrying.`,
+          `API error: ${err.response?.status} ${err.response?.statusText}`,
         );
       }
-
-      if (!response.ok) {
-        throw new Error(`API error: ${response.status} ${response.statusText}`);
-      }
-
-      const data: UserProfileResponse = await response.json();
-      return data;
-    } catch (err) {
       throw err;
     } finally {
       inFlightUserProfile.delete(cacheKey);
@@ -547,35 +675,35 @@ export const fetchUserProfile = async (
 
 export const fetchDoctor = async (token: string): Promise<DoctorResponse> => {
   const cacheKey = `doctor-${token.slice(-8)}`;
+  const cached = getCache<DoctorResponse>(cacheKey);
+  if (cached) return cached;
   if (inFlightDoctor.has(cacheKey)) {
     return inFlightDoctor.get(cacheKey)!;
   }
 
   const promise = (async () => {
     try {
-      const response = await fetch(`${BASE_URL}/userDoctor`, {
-        method: "GET",
+      const response = await api.get("/userDoctor", {
         headers: {
           Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-          Accept: "application/json",
         },
       });
 
-      if (response.status === 429) {
-        const retryAfter = response.headers.get("Retry-After") || "60";
+      const data: DoctorResponse = response.data;
+      setCache(cacheKey, data);
+      return data;
+    } catch (err: any) {
+      if (axios.isAxiosError(err)) {
+        if (err.response?.status === 429) {
+          const retryAfter = err.response.headers["retry-after"] || "60";
+          throw new Error(
+            `Rate limited. Too many requests. Please wait ${retryAfter}s before retrying.`,
+          );
+        }
         throw new Error(
-          `Rate limited. Too many requests. Please wait ${retryAfter}s before retrying.`,
+          `API error: ${err.response?.status} ${err.response?.statusText}`,
         );
       }
-
-      if (!response.ok) {
-        throw new Error(`API error: ${response.status} ${response.statusText}`);
-      }
-
-      const data: DoctorResponse = await response.json();
-      return data;
-    } catch (err) {
       throw err;
     } finally {
       inFlightDoctor.delete(cacheKey);
@@ -592,30 +720,27 @@ export const addDoctor = async (
 ): Promise<AddDoctorResponse> => {
   const promise = (async () => {
     try {
-      const response = await fetch(`${BASE_URL}/userDoctor`, {
-        method: "POST",
+      const response = await api.post("/userDoctor", request, {
         headers: {
           Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-          Accept: "application/json",
         },
-        body: JSON.stringify(request),
       });
 
-      if (response.status === 429) {
-        const retryAfter = response.headers.get("Retry-After") || "60";
+      const data: AddDoctorResponse = response.data;
+      invalidateCache("doctor-");
+      return data;
+    } catch (err: any) {
+      if (axios.isAxiosError(err)) {
+        if (err.response?.status === 429) {
+          const retryAfter = err.response.headers["retry-after"] || "60";
+          throw new Error(
+            `Rate limited. Too many requests. Please wait ${retryAfter}s before retrying.`,
+          );
+        }
         throw new Error(
-          `Rate limited. Too many requests. Please wait ${retryAfter}s before retrying.`,
+          `API error: ${err.response?.status} ${err.response?.statusText}`,
         );
       }
-
-      if (!response.ok) {
-        throw new Error(`API error: ${response.status} ${response.statusText}`);
-      }
-
-      const data: AddDoctorResponse = await response.json();
-      return data;
-    } catch (err) {
       throw err;
     }
   })();
@@ -624,35 +749,35 @@ export const addDoctor = async (
 
 export const fetchLab = async (token: string): Promise<LabResponse> => {
   const cacheKey = `lab-${token.slice(-8)}`;
+  const cached = getCache<LabResponse>(cacheKey);
+  if (cached) return cached;
   if (inFlightLab.has(cacheKey)) {
     return inFlightLab.get(cacheKey)!;
   }
 
   const promise = (async () => {
     try {
-      const response = await fetch(`${BASE_URL}/userlabname`, {
-        method: "GET",
+      const response = await api.get("/userlabname", {
         headers: {
           Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-          Accept: "application/json",
         },
       });
 
-      if (response.status === 429) {
-        const retryAfter = response.headers.get("Retry-After") || "60";
+      const data: LabResponse = response.data;
+      setCache(cacheKey, data);
+      return data;
+    } catch (err: any) {
+      if (axios.isAxiosError(err)) {
+        if (err.response?.status === 429) {
+          const retryAfter = err.response.headers["retry-after"] || "60";
+          throw new Error(
+            `Rate limited. Too many requests. Please wait ${retryAfter}s before retrying.`,
+          );
+        }
         throw new Error(
-          `Rate limited. Too many requests. Please wait ${retryAfter}s before retrying.`,
+          `API error: ${err.response?.status} ${err.response?.statusText}`,
         );
       }
-
-      if (!response.ok) {
-        throw new Error(`API error: ${response.status} ${response.statusText}`);
-      }
-
-      const data: LabResponse = await response.json();
-      return data;
-    } catch (err) {
       throw err;
     } finally {
       inFlightLab.delete(cacheKey);
@@ -669,30 +794,27 @@ export const addLab = async (
 ): Promise<AddLabResponse> => {
   const promise = (async () => {
     try {
-      const response = await fetch(`${BASE_URL}/userlabname`, {
-        method: "POST",
+      const response = await api.post("/userlabname", request, {
         headers: {
           Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-          Accept: "application/json",
         },
-        body: JSON.stringify(request),
       });
 
-      if (response.status === 429) {
-        const retryAfter = response.headers.get("Retry-After") || "60";
+      const data: AddLabResponse = response.data;
+      invalidateCache("lab-");
+      return data;
+    } catch (err: any) {
+      if (axios.isAxiosError(err)) {
+        if (err.response?.status === 429) {
+          const retryAfter = err.response.headers["retry-after"] || "60";
+          throw new Error(
+            `Rate limited. Too many requests. Please wait ${retryAfter}s before retrying.`,
+          );
+        }
         throw new Error(
-          `Rate limited. Too many requests. Please wait ${retryAfter}s before retrying.`,
+          `API error: ${err.response?.status} ${err.response?.statusText}`,
         );
       }
-
-      if (!response.ok) {
-        throw new Error(`API error: ${response.status} ${response.statusText}`);
-      }
-
-      const data: AddLabResponse = await response.json();
-      return data;
-    } catch (err) {
       throw err;
     }
   })();
@@ -703,7 +825,7 @@ export const addLabReport = async (
   token: string,
   request: AddLabReportRequest,
 ): Promise<AddLabReportResponse> => {
-   // const formData = new FormData();
+  // const formData = new FormData();
   // formData.append("date_of_test", new Date(request.date_of_test).toISOString());
   // formData.append("lab_name", request.lab_name);
   // formData.append("doctor_name", request.doctor_name);
@@ -717,9 +839,9 @@ export const addLabReport = async (
   //     formData.append(`test[${index}][test_report]`, test.test_report);
   //   }
   // });
-//   for (const [key, value] of formData.entries()) {
-//   console.log(`${key}:`, value);
-// }
+  //   for (const [key, value] of formData.entries()) {
+  //   console.log(`${key}:`, value);
+  // }
 
   // const fileToBase64 = (file: File): Promise<string> =>
   //   new Promise((resolve, reject) => {
@@ -742,68 +864,99 @@ export const addLabReport = async (
   // console.log(payload)
 
   try {
-    const response = await fetch(`${BASE_URL}/user-lab-report/entry`, {
-      method: "POST",
+    const response = await api.post("/user-lab-report/entry", payload, {
       headers: {
         Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-        Accept: "application/json",
       },
-      body: JSON.stringify(payload),
     });
 
-    if (response.status === 429) {
-      const retryAfter = response.headers.get("Retry-After") || "60";
-      throw new Error(
-        `Rate limited. Too many requests. Please wait ${retryAfter}s before retrying.`,
-      );
-    }
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(
-        `API error: ${response.status} ${response.statusText}\n${errorText}`,
-      );
-    }
-
-    const data: AddLabReportResponse = await response.json();
+    const data: AddLabReportResponse = response.data;
+    invalidateCache("lists-");
+    invalidateCache("compare-reports-");
+    invalidateCache("details-");
     return data;
-  } catch (err) {
+  } catch (err: any) {
+    if (axios.isAxiosError(err)) {
+      if (err.response?.status === 429) {
+        const retryAfter = err.response.headers["retry-after"] || "60";
+        throw new Error(
+          `Rate limited. Too many requests. Please wait ${retryAfter}s before retrying.`,
+        );
+      }
+      throw new Error(
+        `API error: ${err.response?.status} ${err.response?.statusText}`,
+      );
+    }
+    throw err;
+  }
+};
+
+export const deleteLabReport = async (
+  token: string,
+  request: DeleteLabReportRequest,
+): Promise<DeleteLabReportResponse> => {
+  const payload = { ...request };
+
+  try {
+    const response = await api.post("/user-lab-report/delete", payload, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    const data: DeleteLabReportResponse = response.data;
+    invalidateCache("lists-");
+    invalidateCache("compare-reports-");
+    invalidateCache("details-");
+    invalidateCache("prescriptions-");
+    return data;
+  } catch (err: any) {
+    if (axios.isAxiosError(err)) {
+      if (err.response?.status === 429) {
+        const retryAfter = err.response.headers["retry-after"] || "60";
+        throw new Error(
+          `Rate limited. Too many requests. Please wait ${retryAfter}s before retrying.`,
+        );
+      }
+      throw new Error(
+        `API error: ${err.response?.status} ${err.response?.statusText}`,
+      );
+    }
     throw err;
   }
 };
 
 export const fetchVitals = async (token: string): Promise<VitalsResponse> => {
   const cacheKey = `vitals-${token.slice(-8)}`;
+  const cached = getCache<VitalsResponse>(cacheKey);
+  if (cached) return cached;
   if (inFlightVitals.has(cacheKey)) {
     return inFlightVitals.get(cacheKey)!;
   }
 
   const promise = (async () => {
     try {
-      const response = await fetch(`${BASE_URL}/user-vitals`, {
-        method: "GET",
+      const response = await api.get("/user-vitals", {
         headers: {
           Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-          Accept: "application/json",
         },
       });
 
-      if (response.status === 429) {
-        const retryAfter = response.headers.get("Retry-After") || "60";
+      const data: VitalsResponse = response.data;
+      setCache(cacheKey, data);
+      return data;
+    } catch (err: any) {
+      if (axios.isAxiosError(err)) {
+        if (err.response?.status === 429) {
+          const retryAfter = err.response.headers["retry-after"] || "60";
+          throw new Error(
+            `Rate limited. Too many requests. Please wait ${retryAfter}s before retrying.`,
+          );
+        }
         throw new Error(
-          `Rate limited. Too many requests. Please wait ${retryAfter}s before retrying.`,
+          `API error: ${err.response?.status} ${err.response?.statusText}`,
         );
       }
-
-      if (!response.ok) {
-        throw new Error(`API error: ${response.status} ${response.statusText}`);
-      }
-
-      const data: VitalsResponse = await response.json();
-      return data;
-    } catch (err) {
       throw err;
     } finally {
       inFlightVitals.delete(cacheKey);
@@ -814,67 +967,69 @@ export const fetchVitals = async (token: string): Promise<VitalsResponse> => {
   return promise;
 };
 
-export const addVitals = async (token: string, vital: AddVitalRequest): Promise<AddVitalResponse> => {
+export const addVitals = async (
+  token: string,
+  vital: AddVitalRequest,
+): Promise<AddVitalResponse> => {
   try {
-    const response = await fetch(`${BASE_URL}/user-vitals`, {
-      method: "POST",
+    const response = await api.post("/user-vitals", vital, {
       headers: {
         Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-        Accept: "application/json",
       },
-      body: JSON.stringify(vital),
     });
 
-    if (response.status === 429) {
-      const retryAfter = response.headers.get("Retry-After") || "60";
+    const data: AddVitalResponse = response.data;
+    invalidateCache("vitals-");
+    return data;
+  } catch (err: any) {
+    if (axios.isAxiosError(err)) {
+      if (err.response?.status === 429) {
+        const retryAfter = err.response.headers["retry-after"] || "60";
+        throw new Error(
+          `Rate limited. Too many requests. Please wait ${retryAfter}s before retrying.`,
+        );
+      }
       throw new Error(
-        `Rate limited. Too many requests. Please wait ${retryAfter}s before retrying.`,
+        `API error: ${err.response?.status} ${err.response?.statusText}`,
       );
     }
-
-    if (!response.ok) {
-      throw new Error(`API error: ${response.status} ${response.statusText}`);
-    }
-
-    const data: AddVitalResponse = await response.json();
-    return data;
-  } catch (err) {
     throw err;
   }
 };
 
-export const fetchVitalsOthers = async (token: string): Promise<VitalsOthersResponse> => {
+export const fetchVitalsOthers = async (
+  token: string,
+): Promise<VitalsOthersResponse> => {
   const cacheKey = `vitals-others-${token.slice(-8)}`;
+  const cached = getCache<VitalsOthersResponse>(cacheKey);
+  if (cached) return cached;
   if (inFlightVitalsOthers.has(cacheKey)) {
     return inFlightVitalsOthers.get(cacheKey)!;
   }
 
   const promise = (async () => {
     try {
-      const response = await fetch(`${BASE_URL}/user-vital-tests`, {
-        method: "GET",
+      const response = await api.get("/user-vital-tests", {
         headers: {
           Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-          Accept: "application/json",
         },
       });
 
-      if (response.status === 429) {
-        const retryAfter = response.headers.get("Retry-After") || "60";
+      const data: VitalsOthersResponse = response.data;
+      setCache(cacheKey, data);
+      return data;
+    } catch (err: any) {
+      if (axios.isAxiosError(err)) {
+        if (err.response?.status === 429) {
+          const retryAfter = err.response.headers["retry-after"] || "60";
+          throw new Error(
+            `Rate limited. Too many requests. Please wait ${retryAfter}s before retrying.`,
+          );
+        }
         throw new Error(
-          `Rate limited. Too many requests. Please wait ${retryAfter}s before retrying.`,
+          `API error: ${err.response?.status} ${err.response?.statusText}`,
         );
       }
-
-      if (!response.ok) {
-        throw new Error(`API error: ${response.status} ${response.statusText}`);
-      }
-
-      const data: VitalsOthersResponse = await response.json();
-      return data;
-    } catch (err) {
       throw err;
     } finally {
       inFlightVitalsOthers.delete(cacheKey);
@@ -885,32 +1040,32 @@ export const fetchVitalsOthers = async (token: string): Promise<VitalsOthersResp
   return promise;
 };
 
-export const addVitalsOthers = async (token: string, vital: AddVitalOthersRequest): Promise<AddVitalOthersResponse> => {
+export const addVitalsOthers = async (
+  token: string,
+  vital: AddVitalOthersRequest,
+): Promise<AddVitalOthersResponse> => {
   try {
-    const response = await fetch(`${BASE_URL}/user-vital-tests`, {
-      method: "POST",
+    const response = await api.post("/user-vital-tests", vital, {
       headers: {
         Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-        Accept: "application/json",
       },
-      body: JSON.stringify(vital),
     });
 
-    if (response.status === 429) {
-      const retryAfter = response.headers.get("Retry-After") || "60";
+    const data: AddVitalOthersResponse = response.data;
+    invalidateCache("vitals-others-");
+    return data;
+  } catch (err: any) {
+    if (axios.isAxiosError(err)) {
+      if (err.response?.status === 429) {
+        const retryAfter = err.response.headers["retry-after"] || "60";
+        throw new Error(
+          `Rate limited. Too many requests. Please wait ${retryAfter}s before retrying.`,
+        );
+      }
       throw new Error(
-        `Rate limited. Too many requests. Please wait ${retryAfter}s before retrying.`,
+        `API error: ${err.response?.status} ${err.response?.statusText}`,
       );
     }
-
-    if (!response.ok) {
-      throw new Error(`API error: ${response.status} ${response.statusText}`);
-    }
-
-    const data: AddVitalOthersResponse = await response.json();
-    return data;
-  } catch (err) {
     throw err;
   }
 };

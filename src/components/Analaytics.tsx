@@ -1,10 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Activity, Droplet, Search, FileText, ChevronDown, CheckCircle2, TrendingUp, ArrowUpRight, ArrowDownRight, ArrowRight, History, RefreshCw, FlaskConical, TestTube2, Loader2 } from 'lucide-react';
+import { Activity, Droplet, Search, FileText, ChevronDown, CheckCircle2, TrendingUp, ArrowUpRight, ArrowDownRight, ArrowRight, ArrowLeft, History, RefreshCw, FlaskConical, TestTube2, Loader2 } from 'lucide-react';
 import { useNavigateWithToken } from '../hooks/useNavigateWithToken';
 import { useLabReports } from '../hooks/useLabReports';
-import Header from './Header';
-
 const testTypeIcon = (keyword: string) => {
   switch (keyword) {
     case 'blood_test': return <Droplet size={20} />;
@@ -63,15 +61,23 @@ const Analaytics = ({ token }: DashboardProps) => {
 
   return (
     <div className="min-h-screen bg-slate-50 font-sans">
-      <div className="max-w-4xl mx-auto bg-white min-h-screen pb-24">
-        
-        <Header
-          token={token}
-          title="Analytics"
-          onRefresh={refetch}
-          isRefreshing={loading}
-        />
-
+      <div className="max-w-[1440px] mx-auto bg-white min-h-screen pb-24">
+        <div className="flex items-center justify-between px-6 pt-6 pb-4">
+          <button
+            onClick={() => navigate("/")}
+            className="w-9 h-9 rounded-xl bg-white border border-slate-200 flex items-center justify-center hover:bg-slate-50 transition-colors"
+          >
+            <ArrowLeft size={16} className="text-slate-600" />
+          </button>
+          <p className="text-lg font-black text-slate-900">Analytics</p>
+          <button
+            onClick={refetch}
+            className="w-9 h-9 rounded-xl bg-white border border-slate-200 flex items-center justify-center hover:bg-slate-50 transition-colors"
+            title="Refresh"
+          >
+            <RefreshCw size={16} className={loading ? "animate-spin" : ""} />
+          </button>
+        </div>
           {/* Health Score Card - Neumorphic Light */}
           <div className="group bg-white border border-slate-100 hover:border-blue-100 rounded-3xl p-6 shadow-[0_8px_30px_rgba(0,0,0,0.04)] hover:shadow-[0_20px_40px_rgba(59,130,246,0.08)] hover:-translate-y-1 transition-all duration-500 mb-6 relative overflow-hidden">
             <div className="absolute top-0 right-0 w-40 h-40 bg-gradient-to-br from-blue-500/10 to-purple-500/10 blur-3xl rounded-full pointer-events-none group-hover:scale-125 transition-transform duration-700"></div>

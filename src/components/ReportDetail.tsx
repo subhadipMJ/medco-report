@@ -9,6 +9,7 @@ import {
   ChevronUp,
   Building2,
   User,
+  AlertTriangle,
 } from "lucide-react";
 import {
   CartesianGrid,
@@ -20,6 +21,7 @@ import {
   YAxis,
 } from "recharts";
 import type { LabReport } from "../types/api";
+import { useDeleteLabReport } from "../hooks/useLabReports";
 
 function formatDateInput(d: Date): string {
   return d.toISOString().split("T")[0];
@@ -35,10 +37,18 @@ function formatChartDate(dateStr: string): string {
   if (parts.length === 3) {
     const [day, month, year] = parts;
     const d = new Date(`${year}-${month}-${day}`);
-    return d.toLocaleDateString("en-US", { day: "numeric", month: "long", year: "numeric" });
+    return d.toLocaleDateString("en-US", {
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+    });
   }
   const d = new Date(dateStr);
-  return d.toLocaleDateString("en-US", { day: "numeric", month: "long", year: "numeric" });
+  return d.toLocaleDateString("en-US", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
 }
 
 function parseNumericValue(value: string): number | null {
@@ -120,13 +130,21 @@ const ReportDetail = ({ token }: ReportDetailsProps) => {
     "3m",
   );
   const [allValuesOpen, setAllValuesOpen] = useState(true);
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [deleteRecordId, setDeleteRecordId] = useState<number | null>(null);
 
-  const { data, loading, error } = useReportDetails(
+  const { data, loading, error, refetch } = useReportDetails(
     token || null,
     id || "",
     startDate,
     endDate,
   );
+
+  const {
+    loading: deleteLoading,
+    error: deleteError,
+    submit: deleteSubmit,
+  } = useDeleteLabReport(token || "");
 
   const apply3M = () => {
     const end = new Date();
@@ -253,9 +271,18 @@ const ReportDetail = ({ token }: ReportDetailsProps) => {
   // const labName = data?.[0]?.lab_name || "";
   // const doctorName = data?.[0]?.doctor_name || "";
 
+  const handleDelete = async () => {
+    if (deleteRecordId !== null) {
+      await deleteSubmit({ id: deleteRecordId });
+      refetch();
+    }
+    setDeleteModalOpen(false);
+    setDeleteRecordId(null);
+  };
+
   if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-screen bg-[#F5F5F5] font-sans gap-4">
+      <div className="flex flex-col items-center justify-center min-h-screen bg-slate-50 font-sans gap-4">
         <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
         <p className="text-sm font-medium text-slate-500">Loading report...</p>
       </div>
@@ -264,7 +291,7 @@ const ReportDetail = ({ token }: ReportDetailsProps) => {
 
   if (error) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-screen bg-[#F5F5F5] font-sans">
+      <div className="flex flex-col items-center justify-center min-h-screen bg-slate-50 font-sans">
         <p className="text-sm font-bold text-rose-600 mb-3">{error}</p>
         <button
           onClick={() => navigate(-1)}
@@ -278,7 +305,7 @@ const ReportDetail = ({ token }: ReportDetailsProps) => {
 
   if (!data || data.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-screen bg-[#F5F5F5] font-sans">
+      <div className="flex flex-col items-center justify-center min-h-screen bg-slate-50 font-sans">
         <p className="text-slate-500 font-bold mb-4">
           No records found for this test.
         </p>
@@ -293,31 +320,32 @@ const ReportDetail = ({ token }: ReportDetailsProps) => {
   }
 
   return (
-    <div className="min-h-screen bg-[linear-gradient(135deg,#e6edf5_0%,#eef1e6_45%,#f2e9df_100%)] px-2 py-3 sm:px-4 sm:py-6">
-      <div className="mx-auto min-h-[calc(100vh-1.5rem)] w-full max-w-[430px] overflow-hidden rounded-[30px] border border-white/60 bg-white/55 shadow-[0_20px_60px_rgba(17,24,39,0.16)] backdrop-blur-xl">
-        <div className="sticky top-0 z-20 border-b border-slate-200/60 bg-[linear-gradient(180deg,rgba(255,255,255,0.9)_0%,rgba(248,250,252,0.72)_100%)] px-4 pb-3 pt-4 backdrop-blur-md">
-          <div className="mb-3 flex items-center justify-between">
-            <button
-              onClick={() => navigate(-1)}
-              className="flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200/80 bg-white/80 text-slate-700 shadow-sm"
-              aria-label="Back"
-            >
-              <ArrowLeft size={17} />
-            </button>
-            <h1 className="max-w-[245px] truncate px-2 text-center text-xl font-semibold leading-tight text-slate-900 sm:max-w-[280px] sm:text-2xl">
-              {testTypeName}
-            </h1>
-            <div></div>
-            {/* <button
+    <div className="min-h-screen bg-slate-50 font-sans">
+      <div className="max-w-[1440px] mx-auto bg-white min-h-screen pb-24">
+        <div className="mx-auto w-full overflow-hidden rounded-[30px] border border-slate-200 bg-white shadow-[0_20px_60px_rgba(17,24,39,0.16)]">
+          <div className="sticky top-0 z-20 border-b border-slate-200/60 bg-[linear-gradient(180deg,rgba(255,255,255,0.9)_0%,rgba(248,250,252,0.72)_100%)] px-4 pb-3 pt-4 backdrop-blur-md">
+            <div className="mb-3 flex items-center justify-between">
+              <button
+                onClick={() => navigate(-1)}
+                className="flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200/80 bg-white/80 text-slate-700 shadow-sm"
+                aria-label="Back"
+              >
+                <ArrowLeft size={17} />
+              </button>
+              <h1 className="max-w-[245px] truncate px-2 text-center text-xl font-semibold leading-tight text-slate-900 sm:max-w-[280px] sm:text-2xl">
+                {testTypeName}
+              </h1>
+              <div></div>
+              {/* <button
               className="flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200/80 bg-white/80 text-slate-700 shadow-sm"
               aria-label="Actions"
               title="Actions"
             >
               <Download size={16} />
             </button> */}
-          </div>
+            </div>
 
-          {/* {groups.length > 0 && (
+            {/* {groups.length > 0 && (
             <div className="mb-3 flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
               {groups.map((g) => (
                 <button
@@ -335,85 +363,85 @@ const ReportDetail = ({ token }: ReportDetailsProps) => {
             </div>
           )} */}
 
-          <div className="flex flex-col gap-2">
-            <div className="flex items-center gap-1.5 text-sm text-slate-600">
-              <CalendarDays size={14} />
-              <span className="font-medium">Date range</span>
-            </div>
-            <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
-              <button
-                onClick={applyToday}
-                className={`shrink-0 rounded-full border px-3 py-1.5 text-xs font-semibold tracking-wide ${
-                  preset === "today"
-                    ? "border-slate-900 bg-slate-900 text-white"
-                    : "border-slate-300 bg-white/70 text-slate-700"
-                }`}
-              >
-                Today
-              </button>
-              <button
-                onClick={applyYesterday}
-                className={`shrink-0 rounded-full border px-3 py-1.5 text-xs font-semibold tracking-wide ${
-                  preset === "yesterday"
-                    ? "border-slate-900 bg-slate-900 text-white"
-                    : "border-slate-300 bg-white/70 text-slate-700"
-                }`}
-              >
-                Yesterday
-              </button>
-              <button
-                onClick={apply3M}
-                className={`shrink-0 rounded-full border px-3 py-1.5 text-xs font-semibold tracking-wide ${
-                  preset === "3m"
-                    ? "border-slate-900 bg-slate-900 text-white"
-                    : "border-slate-300 bg-white/70 text-slate-700"
-                }`}
-              >
-                3M
-              </button>
-              <button
-                onClick={() => setPreset("custom")}
-                className={`shrink-0 rounded-full border px-3 py-1.5 text-xs font-semibold tracking-wide ${
-                  preset === "custom"
-                    ? "border-slate-900 bg-slate-900 text-white"
-                    : "border-slate-300 bg-white/70 text-slate-700"
-                }`}
-              >
-                Custom
-              </button>
-            </div>
-            {preset === "custom" && (
-              <div className="flex items-center gap-2">
-                <input
-                  type="date"
-                  value={startDate || ""}
-                  onChange={(e) => setStartDate(e.target.value || undefined)}
-                  className="h-9 flex-1 rounded-xl border border-slate-300 bg-white/70 px-3 text-xs font-medium text-slate-800 outline-none focus:border-slate-500"
-                />
-                <span className="text-xs text-slate-400">to</span>
-                <input
-                  type="date"
-                  value={endDate || ""}
-                  onChange={(e) => setEndDate(e.target.value || undefined)}
-                  className="h-9 flex-1 rounded-xl border border-slate-300 bg-white/70 px-3 text-xs font-medium text-slate-800 outline-none focus:border-slate-500"
-                />
+            <div className="flex flex-col gap-2">
+              <div className="flex items-center gap-1.5 text-sm text-slate-600">
+                <CalendarDays size={14} />
+                <span className="font-medium">Date range</span>
               </div>
-            )}
+              <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
+                <button
+                  onClick={applyToday}
+                  className={`shrink-0 rounded-full border px-3 py-1.5 text-xs font-semibold tracking-wide ${
+                    preset === "today"
+                      ? "border-slate-900 bg-slate-900 text-white"
+                      : "border-slate-300 bg-white/70 text-slate-700"
+                  }`}
+                >
+                  Today
+                </button>
+                <button
+                  onClick={applyYesterday}
+                  className={`shrink-0 rounded-full border px-3 py-1.5 text-xs font-semibold tracking-wide ${
+                    preset === "yesterday"
+                      ? "border-slate-900 bg-slate-900 text-white"
+                      : "border-slate-300 bg-white/70 text-slate-700"
+                  }`}
+                >
+                  Yesterday
+                </button>
+                <button
+                  onClick={apply3M}
+                  className={`shrink-0 rounded-full border px-3 py-1.5 text-xs font-semibold tracking-wide ${
+                    preset === "3m"
+                      ? "border-slate-900 bg-slate-900 text-white"
+                      : "border-slate-300 bg-white/70 text-slate-700"
+                  }`}
+                >
+                  3M
+                </button>
+                <button
+                  onClick={() => setPreset("custom")}
+                  className={`shrink-0 rounded-full border px-3 py-1.5 text-xs font-semibold tracking-wide ${
+                    preset === "custom"
+                      ? "border-slate-900 bg-slate-900 text-white"
+                      : "border-slate-300 bg-white/70 text-slate-700"
+                  }`}
+                >
+                  Custom
+                </button>
+              </div>
+              {preset === "custom" && (
+                <div className="flex items-center gap-2">
+                  <input
+                    type="date"
+                    value={startDate || ""}
+                    onChange={(e) => setStartDate(e.target.value || undefined)}
+                    className="h-9 flex-1 rounded-xl border border-slate-300 bg-white/70 px-3 text-xs font-medium text-slate-800 outline-none focus:border-slate-500"
+                  />
+                  <span className="text-xs text-slate-400">to</span>
+                  <input
+                    type="date"
+                    value={endDate || ""}
+                    onChange={(e) => setEndDate(e.target.value || undefined)}
+                    className="h-9 flex-1 rounded-xl border border-slate-300 bg-white/70 px-3 text-xs font-medium text-slate-800 outline-none focus:border-slate-500"
+                  />
+                </div>
+              )}
+            </div>
           </div>
-        </div>
 
-        <div className="px-4 pb-6 pt-5">
-          <div className="mb-2 flex w-full items-center justify-between">
-            <button
-              onClick={() => setAllValuesOpen((prev) => !prev)}
-              className="text-left"
-            >
-              <h2 className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-500">
-                Reports
-              </h2>
-            </button>
-            <div className="flex items-center gap-2">
-              {/* {groups.length > 0 && (
+          <div className="px-4 pb-6 pt-5">
+            <div className="mb-2 flex w-full items-center justify-between">
+              <button
+                onClick={() => setAllValuesOpen((prev) => !prev)}
+                className="text-left"
+              >
+                <h2 className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-500">
+                  Reports
+                </h2>
+              </button>
+              <div className="flex items-center gap-2">
+                {/* {groups.length > 0 && (
                 <button
                   onClick={() => setActiveGroup((prev) => !prev)}
                   className={`rounded-full px-2.5 py-0.5 text-[10px] font-semibold transition-colors ${
@@ -425,60 +453,58 @@ const ReportDetail = ({ token }: ReportDetailsProps) => {
                   {activeGroup ? "All" : "None"}
                 </button>
               )} */}
-              <button
-                onClick={() => setAllValuesOpen((prev) => !prev)}
-                className="text-slate-400"
-              >
-                {allValuesOpen ? (
-                  <ChevronUp size={18} />
-                ) : (
-                  <ChevronDown size={18} />
-                )}
-              </button>
+                <button
+                  onClick={() => setAllValuesOpen((prev) => !prev)}
+                  className="text-slate-400"
+                >
+                  {allValuesOpen ? (
+                    <ChevronUp size={18} />
+                  ) : (
+                    <ChevronDown size={18} />
+                  )}
+                </button>
+              </div>
             </div>
-          </div>
-          {allValuesOpen && (
-            <div className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white/80 shadow-[0_8px_20px_rgba(15,23,42,0.08)]">
-              {data?.map((record, idx) => {
-                const status: string = record.status || "normal";
-                const statusColor =
-                  status === "normal"
-                    ? "#148E69"
-                    : status === "high"
-                      ? "#1F7AE0"
-                      : status === "low"
-                        ? "#D94848"
-                        : "#7A7A7A";
-                const statusLabel =
-                  status === "normal"
-                    ? "Normal"
-                    : status === "high"
-                      ? "High"
-                      : status === "low"
-                        ? "Low"
-                        : "N/A";
-                // const minRange = record.parameter?.start_range
-                //   ? Number.parseFloat(record.parameter.start_range)
-                //   : null;
-                // const maxRange = record.parameter?.end_range
-                //   ? Number.parseFloat(record.parameter.end_range)
-                //   : null;
-                return (
-                  <div
-                    key={`${record.parameter_id}-${record.test_id}-${idx}`}
-                    className={`flex items-center justify-between px-4 py-3.5 ${
-                      idx < data.length - 1
-                        ? "border-b border-slate-100"
-                        : ""
-                    }`}
-                  >
-                    <div className="flex items-start gap-3">
-                      <span
-                        className="mt-2 inline-block h-2.5 w-2.5 rounded-full"
-                        style={{ backgroundColor: statusColor }}
-                      />
-                      <div>
-                        {/* <p className="text-base font-semibold leading-tight text-slate-900">
+            {allValuesOpen && (
+              <div className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white/80 shadow-[0_8px_20px_rgba(15,23,42,0.08)]">
+                {data?.map((record, idx) => {
+                  const status: string = record.status || "normal";
+                  const statusColor =
+                    status === "normal"
+                      ? "#148E69"
+                      : status === "high"
+                        ? "#1F7AE0"
+                        : status === "low"
+                          ? "#D94848"
+                          : "#7A7A7A";
+                  const statusLabel =
+                    status === "normal"
+                      ? "Normal"
+                      : status === "high"
+                        ? "High"
+                        : status === "low"
+                          ? "Low"
+                          : "N/A";
+                  // const minRange = record.parameter?.start_range
+                  //   ? Number.parseFloat(record.parameter.start_range)
+                  //   : null;
+                  // const maxRange = record.parameter?.end_range
+                  //   ? Number.parseFloat(record.parameter.end_range)
+                  //   : null;
+                  return (
+                    <div
+                      key={`${record.parameter_id}-${record.test_id}-${idx}`}
+                      className={`flex items-center justify-between px-4 py-3.5 ${
+                        idx < data.length - 1 ? "border-b border-slate-100" : ""
+                      }`}
+                    >
+                      <div className="flex items-start gap-3">
+                        <span
+                          className="mt-2 inline-block h-2.5 w-2.5 rounded-full"
+                          style={{ backgroundColor: statusColor }}
+                        />
+                        <div>
+                          {/* <p className="text-base font-semibold leading-tight text-slate-900">
                           {record.parameter?.name || "Unknown"}
                         </p>
                         <p className="mt-0.5 text-xs text-slate-500">
@@ -486,61 +512,72 @@ const ReportDetail = ({ token }: ReportDetailsProps) => {
                             ? `Ref: ${minRange}-${maxRange} ${record.parameter?.unit || "-"}`
                             : `Ref: unavailable`}
                         </p> */}
-                        <p className="mt-0.5 text-xl font-semibold text-slate-900">
-                          {formatChartDate(record.date_of_test)}
-                        </p>
-                        {record.doctor_name && (
-                          <p className="mt-1 flex items-center gap-1.5 text-xs text-slate-500">
-                            <User size={12} className="text-emerald-500" />
-                            <span>{record.doctor_name}</span>
+                          <p className="mt-0.5 text-xl font-semibold text-slate-900">
+                            {formatChartDate(record.date_of_test)}
                           </p>
-                        )}
-                        {record.lab_name && (
-                          <p className="mt-0.5 flex items-center gap-1.5 text-xs text-slate-500">
-                            <Building2 size={12} className="text-blue-500" />
-                            <span>{record.lab_name}</span>
-                          </p>
-                        )}
+                          {record.doctor_name && (
+                            <p className="mt-1 flex items-center gap-1.5 text-xs text-slate-500">
+                              <User size={12} className="text-emerald-500" />
+                              <span>Dr. {record.doctor_name.charAt(0).toUpperCase() + record.doctor_name.slice(1).toLowerCase()}</span>
+                            </p>
+                          )}
+                          {record.lab_name && (
+                            <p className="mt-0.5 flex items-center gap-1.5 text-xs text-slate-500">
+                              <Building2 size={12} className="text-blue-500" />
+                              <span>{record.lab_name}</span>
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div className="flex items-center justify-end gap-1 text-2xl font-semibold leading-none text-slate-900">
+                          <span>{record.test_value}</span>
+                        </div>
+                        <div className="mt-1">
+                          <span
+                            className="rounded-md px-2 py-0.5 text-xs font-semibold"
+                            style={{
+                              backgroundColor:
+                                status === "normal"
+                                  ? "#DDE9D2"
+                                  : status === "high"
+                                    ? "#DBEAFE"
+                                    : status === "low"
+                                      ? "#FEE2E2"
+                                      : "#E8E8E8",
+                              color:
+                                status === "normal"
+                                  ? "#148E69"
+                                  : status === "high"
+                                    ? "#1F7AE0"
+                                    : status === "low"
+                                      ? "#D94848"
+                                      : "#7A7A7A",
+                            }}
+                          >
+                            {statusLabel}
+                          </span>
+                        </div>
+                        <div className="mt-1">
+                          <span
+                            className="text-xs text-red-500 cursor-pointer hover:text-red-700"
+                            onClick={() => {
+                              setDeleteModalOpen(true);
+                              setDeleteRecordId(record.id);
+                            }}
+                          >
+                            delete
+                          </span>
+                        </div>
                       </div>
                     </div>
-                    <div className="text-right">
-                      <div className="flex items-center justify-end gap-1 text-2xl font-semibold leading-none text-slate-900">
-                        <span>{record.test_value}</span>
-                      </div>
-                      <div className="mt-1">
-                        <span
-                          className="rounded-md px-2 py-0.5 text-xs font-semibold"
-                          style={{
-                            backgroundColor:
-                              status === "normal"
-                                ? "#DDE9D2"
-                                : status === "high"
-                                  ? "#DBEAFE"
-                                  : status === "low"
-                                    ? "#FEE2E2"
-                                    : "#E8E8E8",
-                            color:
-                              status === "normal"
-                                ? "#148E69"
-                                : status === "high"
-                                  ? "#1F7AE0"
-                                  : status === "low"
-                                    ? "#D94848"
-                                    : "#7A7A7A",
-                          }}
-                        >
-                          {statusLabel}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
 
-        {/* {filteredParameters.length > 0 && (
+          {/* {filteredParameters.length > 0 && (
           <div className="px-4 pt-3">
             <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
               {filteredParameters.map((param) => (
@@ -559,37 +596,37 @@ const ReportDetail = ({ token }: ReportDetailsProps) => {
           </div>
         )} */}
 
-        <div className="space-y-3 px-4 pb-6 pt-4">
-          {groupedByParameter.map((param) => {
-            const chartData = chartPointsByParameter.get(param.name) ?? [];
-            const valueColor = getStatusColor(param.valueStatus);
-            const values = chartData.map((p) => p.value);
-            const minValue = values.length > 0 ? Math.min(...values) : 0;
-            const maxValue = values.length > 0 ? Math.max(...values) : 1;
-            const yPadding =
-              chartData.length > 0
-                ? minValue === maxValue
-                  ? Math.max(Math.abs(minValue) * 0.08, 1)
-                  : Math.max((maxValue - minValue) * 0.18, 0.5)
-                : 1;
+          <div className="space-y-3 px-4 pb-6 pt-4">
+            {groupedByParameter.map((param) => {
+              const chartData = chartPointsByParameter.get(param.name) ?? [];
+              const valueColor = getStatusColor(param.valueStatus);
+              const values = chartData.map((p) => p.value);
+              const minValue = values.length > 0 ? Math.min(...values) : 0;
+              const maxValue = values.length > 0 ? Math.max(...values) : 1;
+              const yPadding =
+                chartData.length > 0
+                  ? minValue === maxValue
+                    ? Math.max(Math.abs(minValue) * 0.08, 1)
+                    : Math.max((maxValue - minValue) * 0.18, 0.5)
+                  : 1;
 
-            return (
-              <div
-                key={param.name}
-                className="rounded-2xl border border-slate-200/80 bg-white/80 px-4 py-3 shadow-[0_8px_20px_rgba(15,23,42,0.08)]"
-              >
-                <div className="mb-2 flex items-start justify-between gap-4">
-                  <div>
-                    <p className="text-lg font-semibold leading-none text-slate-900">
-                      {param.name}
-                    </p>
-                    <p className="mt-1 text-xs text-slate-500">
-                      {param.minRange !== null && param.maxRange !== null
-                        ? `Normal: ${param.minRange}-${param.maxRange} ${param.unit}`
-                        : `Normal range unavailable`}
-                    </p>
-                  </div>
-                  {/* <div className="flex items-end gap-1.5 pt-1">
+              return (
+                <div
+                  key={param.name}
+                  className="rounded-2xl border border-slate-200/80 bg-white/80 px-4 py-3 shadow-[0_8px_20px_rgba(15,23,42,0.08)]"
+                >
+                  <div className="mb-2 flex items-start justify-between gap-4">
+                    <div>
+                      <p className="text-lg font-semibold leading-none text-slate-900">
+                        {param.name}
+                      </p>
+                      <p className="mt-1 text-xs text-slate-500">
+                        {param.minRange !== null && param.maxRange !== null
+                          ? `Normal: ${param.minRange}-${param.maxRange} ${param.unit}`
+                          : `Normal range unavailable`}
+                      </p>
+                    </div>
+                    {/* <div className="flex items-end gap-1.5 pt-1">
                     <span
                       className="text-3xl font-semibold leading-none"
                       style={{ color: valueColor }}
@@ -600,95 +637,137 @@ const ReportDetail = ({ token }: ReportDetailsProps) => {
                       {param.unit}
                     </span>
                   </div> */}
+                  </div>
+
+                  {chartData.length > 0 ? (
+                    <div className="h-[150px] w-full">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <LineChart
+                          data={chartData}
+                          margin={{ top: 14, right: 10, left: 2, bottom: 0 }}
+                        >
+                          <CartesianGrid
+                            vertical={false}
+                            stroke="#E2E8F0"
+                            strokeDasharray="4 4"
+                          />
+                          <XAxis
+                            dataKey="label"
+                            tick={{ fontSize: 11, fill: "#64748B" }}
+                            axisLine={false}
+                            tickLine={false}
+                          />
+                          <YAxis
+                            tick={{ fontSize: 11, fill: "#64748B" }}
+                            axisLine={false}
+                            tickLine={false}
+                            tickFormatter={(value) =>
+                              formatAxisValue(Number(value))
+                            }
+                            tickCount={4}
+                            domain={[minValue - yPadding, maxValue + yPadding]}
+                            width={42}
+                          />
+                          <Tooltip
+                            contentStyle={{
+                              borderRadius: "12px",
+                              border: "1px solid #CBD5E1",
+                              backgroundColor: "#F8FAFC",
+                            }}
+                            labelStyle={{ color: "#334155", fontWeight: 600 }}
+                            formatter={(value: number | string) => [
+                              `${value} ${param.unit}`,
+                              param.name,
+                            ]}
+                            labelFormatter={(label) => `Date: ${label}`}
+                          />
+                          <Line
+                            type="monotone"
+                            dataKey="value"
+                            stroke={valueColor}
+                            strokeWidth={2.5}
+                            dot={(props: {
+                              cx?: number;
+                              cy?: number;
+                              payload?: ChartPoint;
+                            }) => {
+                              const cx = props.cx ?? 0;
+                              const cy = props.cy ?? 0;
+                              const status = props.payload?.status ?? "unknown";
+                              return (
+                                <circle
+                                  cx={cx}
+                                  cy={cy}
+                                  r={4.5}
+                                  stroke="none"
+                                  fill={getStatusColor(status)}
+                                />
+                              );
+                            }}
+                            activeDot={{ r: 6 }}
+                          />
+                        </LineChart>
+                      </ResponsiveContainer>
+                    </div>
+                  ) : (
+                    <div className="rounded-xl border border-dashed border-slate-300 px-3 py-5 text-center text-sm text-slate-500">
+                      No numeric values available for chart.
+                    </div>
+                  )}
                 </div>
+              );
+            })}
+          </div>
 
-                {chartData.length > 0 ? (
-                  <div className="h-[150px] w-full">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <LineChart
-                        data={chartData}
-                        margin={{ top: 14, right: 10, left: 2, bottom: 0 }}
-                      >
-                        <CartesianGrid
-                          vertical={false}
-                          stroke="#E2E8F0"
-                          strokeDasharray="4 4"
-                        />
-                        <XAxis
-                          dataKey="label"
-                          tick={{ fontSize: 11, fill: "#64748B" }}
-                          axisLine={false}
-                          tickLine={false}
-                        />
-                        <YAxis
-                          tick={{ fontSize: 11, fill: "#64748B" }}
-                          axisLine={false}
-                          tickLine={false}
-                          tickFormatter={(value) =>
-                            formatAxisValue(Number(value))
-                          }
-                          tickCount={4}
-                          domain={[minValue - yPadding, maxValue + yPadding]}
-                          width={42}
-                        />
-                        <Tooltip
-                          contentStyle={{
-                            borderRadius: "12px",
-                            border: "1px solid #CBD5E1",
-                            backgroundColor: "#F8FAFC",
-                          }}
-                          labelStyle={{ color: "#334155", fontWeight: 600 }}
-                          formatter={(value: number | string) => [
-                            `${value} ${param.unit}`,
-                            param.name,
-                          ]}
-                          labelFormatter={(label) => `Date: ${label}`}
-                        />
-                        <Line
-                          type="monotone"
-                          dataKey="value"
-                          stroke={valueColor}
-                          strokeWidth={2.5}
-                          dot={(props: {
-                            cx?: number;
-                            cy?: number;
-                            payload?: ChartPoint;
-                          }) => {
-                            const cx = props.cx ?? 0;
-                            const cy = props.cy ?? 0;
-                            const status = props.payload?.status ?? "unknown";
-                            return (
-                              <circle
-                                cx={cx}
-                                cy={cy}
-                                r={4.5}
-                                stroke="none"
-                                fill={getStatusColor(status)}
-                              />
-                            );
-                          }}
-                          activeDot={{ r: 6 }}
-                        />
-                      </LineChart>
-                    </ResponsiveContainer>
-                  </div>
-                ) : (
-                  <div className="rounded-xl border border-dashed border-slate-300 px-3 py-5 text-center text-sm text-slate-500">
-                    No numeric values available for chart.
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-
-        {/* <div className="px-4 pb-6 pt-5">
+          {/* <div className="px-4 pb-6 pt-5">
           <p className="mt-4 text-center text-xs text-slate-500">
             {formatShortDate(testDate)} · {labName}
             {doctorName && ` · Dr. ${doctorName}`}
           </p>
         </div> */}
+        </div>
       </div>
+
+      {/* Delete Confirmation Modal */}
+      {deleteModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm px-4">
+          <div className="w-full max-w-sm rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl">
+            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-red-50">
+              <AlertTriangle size={24} className="text-red-600" />
+            </div>
+            <h3 className="mb-1 text-center text-lg font-bold text-slate-900">
+              Delete Record?
+            </h3>
+            <p className="mb-6 text-center text-sm text-slate-500">
+              Are you sure you want to delete this record? This action cannot be
+              undone.
+            </p>
+            {deleteError && (
+              <p className="mb-4 text-center text-xs font-semibold text-red-600">
+                {deleteError}
+              </p>
+            )}
+            <div className="flex gap-3">
+              <button
+                onClick={() => {
+                  setDeleteModalOpen(false);
+                  setDeleteRecordId(null);
+                }}
+                className="flex-1 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDelete}
+                disabled={deleteLoading}
+                className="flex-1 rounded-xl bg-red-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-red-700 transition-colors disabled:opacity-60"
+              >
+                {deleteLoading ? "Deleting..." : "Delete"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

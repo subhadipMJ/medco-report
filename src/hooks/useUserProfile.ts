@@ -21,10 +21,10 @@ export const useUserProfile = (token: string | null): UseUserProfileResult => {
     setError(null);
     fetchUserProfile(token)
       .then((res) => {
-        if (res.success === 1 && res.data) {
-          setUser(res.data);
+        if (res.success && res.user) {
+          setUser(res.user);
         } else {
-          setError(res.message || 'Failed to fetch user profile');
+          setError('Failed to fetch user profile');
         }
       })
       .catch((err) => {

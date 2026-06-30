@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   ArrowLeft,
   Search,
@@ -16,6 +16,7 @@ import {
 import { useNavigateWithToken } from "../hooks/useNavigateWithToken";
 import { useLocation } from "react-router-dom";
 import { useReportCompare } from "../hooks/useReportCompare";
+import { useDebounce } from "../hooks/useDebounce";
 import { CompareReportParameter } from "../types/api";
 
 interface TestEntry extends CompareReportParameter {
@@ -30,12 +31,20 @@ const SelectTest = ({ token }: SelectTestProps) => {
   const navigate = useNavigateWithToken();
   const location = useLocation();
   const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
+  const debouncedSearch = useDebounce(search, 400);
+
+  useEffect(() => {
+    setPage(1);
+  }, [debouncedSearch]);
 
   const {
     params,
     loading: paramsLoading,
+    isLoadingMore,
     error: paramsError,
-  } = useReportCompare(token || null, 1);
+    hasMore,
+  } = useReportCompare(token || null, { search: debouncedSearch, page });
 
   const preserved = (location.state as {
     date?: string;
@@ -63,10 +72,6 @@ const SelectTest = ({ token }: SelectTestProps) => {
       return next;
     });
   };
-
-  const filtered = params.filter((p) =>
-    p.parameter_name.toLowerCase().includes(search.trim().toLowerCase())
-  );
 
   const getTestMeta = (name: string) => {
     const n = name.toLowerCase();
@@ -116,22 +121,36 @@ const SelectTest = ({ token }: SelectTestProps) => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 pb-24">
-      {/* Header */}
-      <div className="flex items-center justify-between px-6 pt-8 pb-4">
-        <div className="flex items-center gap-3">
-          <button
-            onClick={goBack}
-            className="w-9 h-9 rounded-xl bg-white border border-slate-100 flex items-center justify-center hover:bg-slate-100 transition-colors"
-          >
-            <ArrowLeft size={16} className="text-slate-600" />
-          </button>
-          <div>
-            <p className="text-xs text-slate-500 font-semibold tracking-wider uppercase">
-              New Entry
-            </p>
-            <p className="text-xl font-black text-slate-900">Select Tests</p>
+    <div className="min-h-screen bg-slate-50 font-sans">
+      <div className="max-w-[1440px] mx-auto bg-slate-50 min-h-screen pb-24">
+        {/* Header */}
+      <div className="relative px-6 pt-8 pb-5 overflow-hidden">
+        <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-blue-400 via-violet-400 to-rose-400" />
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={goBack}
+              className="w-10 h-10 rounded-xl bg-white border border-slate-200 shadow-sm flex items-center justify-center hover:border-slate-300 hover:shadow transition-all"
+            >
+              <ArrowLeft size={18} className="text-slate-700" />
+            </button>
+            <div>
+              <p className="text-[10px] text-slate-400 font-semibold tracking-widest uppercase">
+                New Entry
+              </p>
+              <p className="text-xl font-black text-slate-900 tracking-tight">
+                Select Tests
+              </p>
+            </div>
           </div>
+          {selected.size > 0 && (
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-50 border border-emerald-100">
+              <div className="w-2 h-2 rounded-full bg-emerald-500" />
+              <span className="text-xs font-bold text-emerald-700">
+                {selected.size} selected
+              </span>
+            </div>
+          )}
         </div>
       </div>
 
@@ -167,12 +186,12 @@ const SelectTest = ({ token }: SelectTestProps) => {
         {paramsError && (
           <p className="text-sm text-red-500">{paramsError}</p>
         )}
-        {!paramsLoading && !paramsError && filtered.length === 0 && (
+        {!paramsLoading && !paramsError && params.length === 0 && (
           <p className="text-sm text-slate-400">No tests found.</p>
         )}
         {!paramsLoading &&
           !paramsError &&
-          filtered.map((test) => {
+          params.map((test) => {
             const checked = selected.has(test.parameter_id);
             const { Icon, iconBg } = getTestMeta(test.parameter_name);
             const refText =
@@ -220,6 +239,23 @@ const SelectTest = ({ token }: SelectTestProps) => {
           })}
       </div>
 
+      {/* Load More */}
+      {hasMore && !paramsLoading && !isLoadingMore && !paramsError && (
+        <div className="px-6 mt-4 mb-4">
+          <button
+            onClick={() => setPage((p) => p + 1)}
+            className="w-full h-11 rounded-xl border border-slate-200 bg-white text-sm font-bold text-slate-700 hover:bg-slate-50 transition-colors"
+          >
+            Load More
+          </button>
+        </div>
+      )}
+      {isLoadingMore && (
+        <div className="px-6 mt-4 mb-4 text-center">
+          <p className="text-sm text-slate-500">Loading more...</p>
+        </div>
+      )}
+
       {/* Done button */}
       <div className="fixed bottom-0 left-0 right-0 p-4 bg-white border-t border-slate-100">
         <div className="max-w-md mx-auto">
@@ -231,6 +267,7 @@ const SelectTest = ({ token }: SelectTestProps) => {
           </button>
         </div>
       </div>
+    </div>
     </div>
   );
 };

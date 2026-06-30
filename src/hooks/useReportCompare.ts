@@ -1,12 +1,19 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { fetchCompareReports, fetchCompareReportsDetails } from '../services/api';
 import type { CompareReportDetails, CompareReportParameter } from '../types/api';
+
+interface UseReportCompareFilters {
+  search?: string;
+  page?: number;
+}
 
 interface UseReportCompareResult {
   params: CompareReportParameter[];
   loading: boolean;
+  isLoadingMore: boolean;
   error: string | null;
   refetch: () => void;
+  hasMore: boolean;
 }
 
 interface UseReportCompareDetailsResult {
@@ -16,36 +23,67 @@ interface UseReportCompareDetailsResult {
   refetch: () => void;
 }
 
-export const useReportCompare = (token: string | null, page: number = 1): UseReportCompareResult => {
+export const useReportCompare = (token: string | null, filters: UseReportCompareFilters = {}): UseReportCompareResult => {
   const [params, setParams] = useState<CompareReportParameter[]>([]);
   const [loading, setLoading] = useState(false);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [hasMore, setHasMore] = useState(true);
   const [trigger, setTrigger] = useState(0);
-    
-  const fetch = useCallback(() => {
+
+  const prevFiltersRef = useRef({ search: '', page: 1 });
+  const accumulatedRef = useRef<CompareReportParameter[]>([]);
+
+  useEffect(() => {
     if (!token) return;
-    setLoading(true);
+
+    const currentFilters = {
+      search: filters.search || '',
+      page: filters.page || 1,
+    };
+
+    const filtersChanged = currentFilters.search !== prevFiltersRef.current.search;
+    const isFirstPage = filtersChanged || currentFilters.page === 1;
+
+    if (isFirstPage) {
+      setLoading(true);
+    } else {
+      setIsLoadingMore(true);
+    }
     setError(null);
-    fetchCompareReports(token, page)
+
+    fetchCompareReports(token, currentFilters.page, currentFilters.search)
       .then((res) => {
         const newData = Array.isArray(res.data) ? res.data : [];
-        setParams((prev) => (page === 1 ? newData : [...prev, ...newData]));
+
+        if (isFirstPage) {
+          accumulatedRef.current = newData;
+        } else {
+          accumulatedRef.current = [...accumulatedRef.current, ...newData];
+        }
+
+        setParams(accumulatedRef.current);
+        
+        if(res.pagination){
+          setHasMore(res.pagination.current_page < res.pagination.last_page);
+        }
+        prevFiltersRef.current = currentFilters;
       })
       .catch((err) => {
         setError(err.message || 'Failed to fetch compare reports');
       })
       .finally(() => {
-        setLoading(false);
+        if (isFirstPage) {
+          setLoading(false);
+        } else {
+          setIsLoadingMore(false);
+        }
       });
-  }, [token, page]);
+  }, [token, trigger, filters.search, filters.page]);
 
-  useEffect(() => {
-    fetch();
-  }, [fetch, trigger]);
+  const refetch = () => setTrigger((t) => t + 1);
 
-  const refetch = useCallback(() => setTrigger((t) => t + 1), []);
-
-  return { params, loading, error, refetch };
+  return { params, loading, isLoadingMore, error, refetch, hasMore };
 };
 
 export const useReportCompareDetails = (token: string | null, parameter_ids: string[]): UseReportCompareDetailsResult => {
