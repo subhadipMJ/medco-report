@@ -21,19 +21,26 @@ export default function PrescriptionView() {
 
   const handleShare = async () => {
     if (!url) return;
-    try {
-      if (navigator.canShare && navigator.canShare({ url })) {
-        await navigator.share({ url, title: "Prescription" });
-        return;
+    if (window.flutter_inappwebview) {
+      window.flutter_inappwebview.callHandler(
+        "sharePdf",
+
+        url,
+      );
+    } else {
+      // Browser fallback
+
+      if (navigator.share) {
+        navigator.share({
+          title: "Prescription",
+
+          url: url,
+        });
+      } else {
+        navigator.clipboard.writeText(url);
+
+        alert("Link copied to clipboard!");
       }
-    } catch {
-      /* ignore user cancellation */
-    }
-    try {
-      await navigator.clipboard.writeText(url);
-      alert("Link copied to clipboard!");
-    } catch {
-      window.open(url, "_blank");
     }
   };
 
@@ -99,7 +106,7 @@ export default function PrescriptionView() {
       <div className="flex-1 bg-slate-100 overflow-auto relative">
         {isPdf ? (
           <iframe
-            src={url}
+            src={`https://docs.google.com/gview?embedded=true&url=${encodeURIComponent(url)}`}
             title="Prescription PDF"
             className="w-full h-full"
             onLoad={() => setLoading(false)}

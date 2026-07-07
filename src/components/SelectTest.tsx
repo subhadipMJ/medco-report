@@ -92,18 +92,30 @@ const SelectTest = ({ token }: SelectTestProps) => {
     return { Icon: Activity as LucideIcon, iconBg: "bg-white text-slate-500" };
   };
 
-  const buildTests = (): TestEntry[] =>
-    params
-      .filter((p) => selected.has(p.parameter_id))
-      .map((p) => {
-        const existing = currentTests?.find(
-          (t) => t.parameter_id === p.parameter_id
-        );
-        return {
+  const buildTests = (): TestEntry[] => {
+    const result: TestEntry[] = [];
+    const addedIds = new Set<string>();
+
+    // First, include previously selected tests from currentTests
+    currentTests?.forEach((t) => {
+      if (selected.has(t.parameter_id)) {
+        result.push(t);
+        addedIds.add(t.parameter_id);
+      }
+    });
+
+    // Then, add any new selections from params that weren't in currentTests
+    params.forEach((p) => {
+      if (selected.has(p.parameter_id) && !addedIds.has(p.parameter_id)) {
+        result.push({
           ...p,
-          value: existing?.value || "",
-        };
-      });
+          value: "",
+        });
+      }
+    });
+
+    return result;
+  };
 
   const goBack = () => {
     navigate("/add-report", {

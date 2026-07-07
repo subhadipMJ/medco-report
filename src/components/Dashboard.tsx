@@ -175,10 +175,35 @@ const Dashboard = ({ token }: DashboardProps) => {
   // const { vitalsOthers } = useVitalsOthers(token);
 
   const initialHighestCachedPage = useRef(highestCachedPage);
+  const hasRestoredScroll = useRef(false);
 
   useEffect(() => {
     setPage(1);
   }, [debouncedSearchQuery, dateFilters, statusFilter]);
+
+  useEffect(() => {
+    if (!loading && !hasRestoredScroll.current) {
+      const saved =
+        typeof window.history.state === "object" &&
+        window.history.state !== null
+          ? window.history.state.dashboardScrollY
+          : undefined;
+      if (typeof saved === "number") {
+        const restoreScroll = () => {
+          window.scrollTo(0, saved);
+          window.history.replaceState(
+            { ...window.history.state, dashboardScrollY: undefined },
+            "",
+          );
+        };
+        // First RAF waits for paint, second RAF waits for layout to settle
+        requestAnimationFrame(() => {
+          requestAnimationFrame(restoreScroll);
+        });
+      }
+      hasRestoredScroll.current = true;
+    }
+  }, [loading]);
 
   const trendCards = useMemo(() => {
     return (Array.isArray(rawList) ? rawList : [])
@@ -499,7 +524,7 @@ const Dashboard = ({ token }: DashboardProps) => {
                 >
                   <RefreshCw size={14} /> Retry
                 </button>
-                <p>{token}</p>
+                {/* <p>{token}</p> */}
               </div>
             )}
 
@@ -513,7 +538,7 @@ const Dashboard = ({ token }: DashboardProps) => {
                   <code className="bg-amber-100 px-1 rounded">?token=</code> URL
                   parameter.
                 </p>
-                <p>{token}</p>
+                {/* <p>{token}</p> */}
               </div>
             )}
 
@@ -582,7 +607,13 @@ const Dashboard = ({ token }: DashboardProps) => {
                     <div
                       key={card.key}
                       className="group cursor-pointer border-b border-slate-200 bg-white p-4 hover:bg-slate-50 transition-colors"
-                      onClick={() => navigate(`/report/${card.parameterId}`)}
+                      onClick={() => {
+                        window.history.replaceState(
+                          { ...window.history.state, dashboardScrollY: window.scrollY },
+                          "",
+                        );
+                        navigate(`/report/${card.parameterId}`);
+                      }}
                     >
                       {/* Header */}
                       <div className="flex items-start justify-between">
@@ -739,7 +770,13 @@ const Dashboard = ({ token }: DashboardProps) => {
         {/* Floating Add Report Button */}
         {!vitalsModalOpen && (
           <button
-            onClick={() => navigate(`/add-report?token=${token}`)}
+            onClick={() => {
+              window.history.replaceState(
+                { ...window.history.state, dashboardScrollY: window.scrollY },
+                "",
+              );
+              navigate(`/add-report?token=${token}`);
+            }}
             className="fixed bottom-40 right-6 w-14 h-14 rounded-full bg-slate-900 text-white shadow-lg flex items-center justify-center hover:bg-slate-800 active:scale-95 transition-all z-50"
             title="Add Report"
           >

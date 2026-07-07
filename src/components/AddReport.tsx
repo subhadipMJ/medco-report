@@ -285,9 +285,9 @@ const AddReport = ({ token }: AddReportProps) => {
 
   const handleAddReport = () => {
     // TODO: Implement add report functionality
-    if (window.Flutter?.postMessage) {
+    if (window.flutter_inappwebview) {
       console.log("Sending message to Flutter:");
-      window.Flutter.postMessage("open_add_reports");
+      window.flutter_inappwebview.callHandler("Flutter", "open_add_reports");
     } else {
       console.log("Not running inside Flutter WebView");
     }
@@ -389,7 +389,9 @@ const AddReport = ({ token }: AddReportProps) => {
               </p>
               <div className="flex items-center gap-2 mt-2 text-emerald-600">
                 <CalendarDays size={14} />
-                <span className="text-sm font-medium">{formatDateDMY(date)}</span>
+                <span className="text-sm font-medium">
+                  {formatDateDMY(date)}
+                </span>
               </div>
             </div>
           </div>
@@ -741,7 +743,11 @@ const AddReport = ({ token }: AddReportProps) => {
             ) : (
               <button
                 onClick={handleFinalSubmit}
-                disabled={tests.length === 0 || tests.some((t) => !t.value || !t.value.trim()) || addLabReportLoading}
+                disabled={
+                  tests.length === 0 ||
+                  tests.some((t) => !t.value || !t.value.trim()) ||
+                  addLabReportLoading
+                }
                 className="w-full h-14 rounded-2xl bg-slate-900 text-white text-sm font-bold flex items-center justify-center gap-2 hover:bg-slate-800 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 {addLabReportLoading && (

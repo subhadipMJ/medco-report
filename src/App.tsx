@@ -1,4 +1,3 @@
-import { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import Layout from './components/Layout';
 import Dashboard from './components/Dashboard';
@@ -16,9 +15,12 @@ import SelectTest from './components/SelectTest';
 function AppRoutes() {
   const location = useLocation();
 
-  useEffect(() => {
-    window.scrollTo(0, 0);
-  }, [location.pathname]);
+  // Disable native scroll restoration so we handle it manually per-page
+  if ('scrollRestoration' in history) {
+    history.scrollRestoration = 'manual';
+  }
+
+  // Scroll-to-top is handled per-page so Dashboard can restore its scroll position on return
 
   const searchParams = new URLSearchParams(location.search);
 

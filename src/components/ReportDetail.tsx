@@ -1,5 +1,5 @@
 import { useParams } from "react-router-dom";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigateWithToken } from "../hooks/useNavigateWithToken";
 import { useReportDetails } from "../hooks/useReportDetails";
 import {
@@ -31,6 +31,15 @@ function formatDateInput(d: Date): string {
 //   const d = new Date(dateStr);
 //   return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 // }
+
+function parseDateStr(dateStr: string): number {
+  const parts = dateStr.split("-");
+  if (parts.length === 3) {
+    const [day, month, year] = parts;
+    return new Date(`${year}-${month}-${day}`).getTime();
+  }
+  return new Date(dateStr).getTime();
+}
 
 function formatChartDate(dateStr: string): string {
   const parts = dateStr.split("-");
@@ -133,6 +142,10 @@ const ReportDetail = ({ token }: ReportDetailsProps) => {
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [deleteRecordId, setDeleteRecordId] = useState<number | null>(null);
 
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
+
   const { data, loading, error, refetch } = useReportDetails(
     token || null,
     id || "",
@@ -184,9 +197,7 @@ const ReportDetail = ({ token }: ReportDetailsProps) => {
     return Array.from(map.entries())
       .map(([name, records]): ParameterCardData => {
         const sortedRecords = [...records].sort(
-          (a, b) =>
-            new Date(a.date_of_test).getTime() -
-            new Date(b.date_of_test).getTime(),
+          (a, b) => parseDateStr(a.date_of_test) - parseDateStr(b.date_of_test),
         );
         const latestRecord = sortedRecords[sortedRecords.length - 1];
         const previousRecord = sortedRecords[sortedRecords.length - 2];
@@ -254,7 +265,8 @@ const ReportDetail = ({ token }: ReportDetailsProps) => {
               status,
             };
           })
-          .filter((point): point is ChartPoint => point !== null);
+          .filter((point): point is ChartPoint => point !== null)
+          .sort((a, b) => parseDateStr(a.fullDate) - parseDateStr(b.fullDate));
 
         return [parameter.name, points] as const;
       }),
