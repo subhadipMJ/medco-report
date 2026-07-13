@@ -8,9 +8,11 @@ const groupReports = (lists: LabReport[]): GroupedByTestType[] => {
   const testTypeMap = new Map<number, GroupedByTestType>();
 
   lists.forEach(report => {
-    const ttId = report.test_type.id;
+    if (!report.test_type) return;
+    const testType = report.test_type;
+    const ttId = testType.id;
     if (!testTypeMap.has(ttId)) {
-      testTypeMap.set(ttId, { testType: report.test_type, groups: [] });
+      testTypeMap.set(ttId, { testType, groups: [] });
     }
     const testTypeEntry = testTypeMap.get(ttId)!;
 
@@ -20,7 +22,7 @@ const groupReports = (lists: LabReport[]): GroupedByTestType[] => {
         groupId: Number(report.group_id),
         groupName: report.group.name,
         groupKeyword: report.group.key_word,
-        testType: report.test_type,
+        testType,
         latestDate: report.date_of_test,
         labName: report.lab_name,
         doctorName: report.doctor_name,

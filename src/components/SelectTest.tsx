@@ -61,13 +61,30 @@ const SelectTest = ({ token }: SelectTestProps) => {
     return ids;
   });
 
+  const [selectedTestsCache, setSelectedTestsCache] = useState<Record<string, CompareReportParameter>>(() => {
+    const cache: Record<string, CompareReportParameter> = {};
+    currentTests?.forEach((t) => {
+      cache[t.parameter_id] = t;
+    });
+    return cache;
+  });
+
   const toggle = (param: CompareReportParameter) => {
     setSelected((prev) => {
       const next = new Set(prev);
       if (next.has(param.parameter_id)) {
         next.delete(param.parameter_id);
+        setSelectedTestsCache((cache) => {
+          const newCache = { ...cache };
+          delete newCache[param.parameter_id];
+          return newCache;
+        });
       } else {
         next.add(param.parameter_id);
+        setSelectedTestsCache((cache) => ({
+          ...cache,
+          [param.parameter_id]: param,
+        }));
       }
       return next;
     });
@@ -94,22 +111,15 @@ const SelectTest = ({ token }: SelectTestProps) => {
 
   const buildTests = (): TestEntry[] => {
     const result: TestEntry[] = [];
-    const addedIds = new Set<string>();
 
-    // First, include previously selected tests from currentTests
-    currentTests?.forEach((t) => {
-      if (selected.has(t.parameter_id)) {
-        result.push(t);
-        addedIds.add(t.parameter_id);
-      }
-    });
-
-    // Then, add any new selections from params that weren't in currentTests
-    params.forEach((p) => {
-      if (selected.has(p.parameter_id) && !addedIds.has(p.parameter_id)) {
+    // Use the cache to get all selected tests with their full details
+    selected.forEach((id) => {
+      const cached = selectedTestsCache[id];
+      if (cached) {
+        const existing = currentTests?.find((t) => t.parameter_id === id);
         result.push({
-          ...p,
-          value: "",
+          ...cached,
+          value: existing?.value || "",
         });
       }
     });

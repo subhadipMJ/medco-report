@@ -225,7 +225,7 @@ const Dashboard = ({ token }: DashboardProps) => {
           key: `${report.id}`,
           testId: report.test_id,
           parameterId: report.parameter_id,
-          keyword: report.test_type.key_word,
+          keyword: report.test_type?.key_word || "",
           name: report.parameter.name,
           unit: report.parameter.unit || "-",
           testDate: report.date_of_test || "dd/mm/yyyy",
@@ -609,7 +609,10 @@ const Dashboard = ({ token }: DashboardProps) => {
                       className="group cursor-pointer border-b border-slate-200 bg-white p-4 hover:bg-slate-50 transition-colors"
                       onClick={() => {
                         window.history.replaceState(
-                          { ...window.history.state, dashboardScrollY: window.scrollY },
+                          {
+                            ...window.history.state,
+                            dashboardScrollY: window.scrollY,
+                          },
                           "",
                         );
                         navigate(`/report/${card.parameterId}`);

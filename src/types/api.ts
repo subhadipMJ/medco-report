@@ -50,7 +50,7 @@ export interface LabReport {
   created_at: string;
   updated_at: string;
   status?: "high" | "normal" | "low";
-  test_type: TestType;
+  test_type: TestType | null;
   group: TestGroup;
   parameter: TestParameter;
 }
