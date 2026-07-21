@@ -52,8 +52,11 @@ interface UseLabReportsFilters {
 interface PaginationInfo {
   currentPage: number;
   lastPage: number;
+  show: number;
   total: number;
   perPage: number;
+  nextPageUrl: string | null;
+  prevPageUrl: string | null;
 }
 
 interface UseLabReportsResult {
@@ -140,8 +143,11 @@ export const useLabReports = (
       const pageInfo = {
         currentPage: res.data.current_page,
         lastPage: res.data.last_page,
+        show: res.data.to,
         total: res.data.total,
         perPage: res.data.per_page,
+        nextPageUrl: res.data.next_page_url,
+        prevPageUrl: res.data.prev_page_url,
       };
       setPagination(pageInfo);
       return { list, pageInfo };
@@ -211,9 +217,7 @@ export const useLabReports = (
         if (isFirstPage) {
           accCache.list = list;
         } else {
-          const seen = new Set(accCache.list.map((item: LabReport) => item.id));
-          const newItems = list.filter((item: LabReport) => !seen.has(item.id));
-          accCache.list = [...accCache.list, ...newItems];
+          accCache.list = [...accCache.list, ...list];
         }
 
         accCache.lastPage = currentFilters.page;

@@ -172,10 +172,18 @@ const Dashboard = ({ token }: DashboardProps) => {
     page,
   });
 
+  console.log("pagination", pagination);
+
   // const { vitalsOthers } = useVitalsOthers(token);
 
   const initialHighestCachedPage = useRef(highestCachedPage);
   const hasRestoredScroll = useRef(false);
+
+  useEffect(() => {
+    if(pagination && pagination.currentPage) {
+      setPage(pagination.currentPage);
+    }
+  },[pagination]);
 
   useEffect(() => {
     setPage(1);
@@ -207,7 +215,7 @@ const Dashboard = ({ token }: DashboardProps) => {
 
   const trendCards = useMemo(() => {
     return (Array.isArray(rawList) ? rawList : [])
-      .map((report) => {
+      .map((report,index) => {
         const minRange = report.parameter.start_range
           ? Number.parseFloat(report.parameter.start_range)
           : null;
@@ -222,7 +230,7 @@ const Dashboard = ({ token }: DashboardProps) => {
               : "#228B22";
 
         return {
-          key: `${report.id}`,
+          key: `${report.id}-${index}`,
           testId: report.test_id,
           parameterId: report.parameter_id,
           keyword: report.test_type?.key_word || "",
@@ -740,7 +748,7 @@ const Dashboard = ({ token }: DashboardProps) => {
                     </div>
                   );
                 })}
-                {pagination && pagination.currentPage < pagination.lastPage && (
+                {pagination && pagination.nextPageUrl !== null && (
                   <div className="mt-4 flex flex-col items-center gap-2">
                     <button
                       onClick={() => setPage((p) => p + 1)}
@@ -753,7 +761,7 @@ const Dashboard = ({ token }: DashboardProps) => {
                       Load More
                     </button>
                     <p className="text-[11px] font-medium text-slate-400">
-                      Showing {rawList.length} of {pagination.total}
+                      Showing {pagination.show} of {pagination.total}
                     </p>
                   </div>
                 )}
